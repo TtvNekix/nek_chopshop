@@ -7,50 +7,19 @@ function _L(key, ...)
     return str
 end
 
-function ClientUtils.GetRandomScrapLocationAndSpawnPoint()
+-- Returns true when the player is on cooldown (and notifies them).
+-- Purely cosmetic: the server enforces the cooldown again in requestJob.
+function ClientUtils.IsOnCooldown()
     local cooldown = lib.callback.await('chopshop:server:getCooldown', false)
     if cooldown and cooldown > 0 then
-        local minutes = math.ceil(cooldown / 60)
         Editable.Client.Notify({
             title = 'Chop Shop',
-            description = _L('cooldown_msg', minutes),
+            description = _L('cooldown_msg', math.ceil(cooldown / 60)),
             type = 'error'
         })
-        return 'cd', 'cd'
+        return true
     end
-
-    local randomSpawn = math.random(1, #Config.Coords.Spawns)
-    local randomScrap = math.random(1, #Config.Coords.Scrap)
-    local scrapLocation = Config.Coords.Scrap[randomScrap]
-    local spawnPoint = Config.Coords.Spawns[randomSpawn]
-    local intents = 0
-
-    local ScrapsOccupied = lib.callback.await('chopshop:server:getScrapsOccupied', false)
-    while ScrapsOccupied[scrapLocation.name] do
-        randomScrap = math.random(1, #Config.Coords.Scrap)
-        scrapLocation = Config.Coords.Scrap[randomScrap]
-        intents = intents + 1
-        if intents >= 10 then
-            return nil, nil
-        end
-    end
-
-    intents = 0
-    while intents < 10 do
-        randomSpawn = math.random(1, #Config.Coords.Spawns)
-        spawnPoint = Config.Coords.Spawns[randomSpawn]
-        local vehiclesInArea = lib.getNearbyVehicles(vec3(spawnPoint.x, spawnPoint.y, spawnPoint.z), 2.0)
-        if #vehiclesInArea == 0 then
-            break
-        end
-        intents = intents + 1
-
-        if intents >= 10 then
-            return nil, nil
-        end
-    end
-
-    return scrapLocation, spawnPoint
+    return false
 end
 
 function ClientUtils.SetBlips(data, vehicleSpawnedNWID)

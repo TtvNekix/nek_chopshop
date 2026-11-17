@@ -110,6 +110,7 @@ Config.Logs = {
     EnableItem   = true,  -- Log when an item is received
     EnablePay    = true,  -- Log when payment is made
     EnableFinish = true,  -- Log when job is finished
+    EnableWarn   = true,  -- Log suspicious (possibly exploited) requests
     Compact      = false, -- Use compact logging format
 }
 
@@ -132,6 +133,12 @@ Config.Locales = {
     already_working = 'Ya tienes un trabajo activo',
     cooldown_msg = 'Tienes que esperar %d minutos para volver a trabajar.',
     error_starting = 'Error al iniciar el trabajo',
+    no_scrap_available = 'No hay desguaces libres ahora mismo. Vuelve más tarde.',
+    scrap_rejected = 'El vehículo no está en el desguace.',
+    job_expired = 'Se acabó el tiempo. El trabajo ha sido cancelado.',
+    partner_invited = 'Invitación enviada.',
+    partner_invite_title = 'Desguace',
+    partner_invite_desc = '%s te invita a desguazar un vehículo con él. ¿Aceptas?',
     need_lockpick = 'Necesitas una ganzúa',
     vehicle_unlocked = 'Vehículo desbloqueado. Llévalo.',
     failed_lockpick = 'Fallaste al ganzuar. Vuelve a intentarlo.',
@@ -379,4 +386,44 @@ Config.Vehicles = {
     'pigalle',
     'tornado',
     'zion3',
+}
+
+-- Parts that can be removed from the job vehicle.
+-- The server only rewards parts listed here, so this table is the reward whitelist.
+-- label: key in Config.Locales | part: door index / wheel index | bonus: extra items given with the part
+Config.ChopParts = {
+    { bone = 'door_dside_f', part = 0, item = 'vehicle_door', label = 'door_lf',  isDoor = true },
+    { bone = 'door_dside_r', part = 2, item = 'vehicle_door', label = 'door_lr',  isDoor = true },
+    { bone = 'door_pside_r', part = 3, item = 'vehicle_door', label = 'door_rr',  isDoor = true },
+    { bone = 'door_pside_f', part = 1, item = 'vehicle_door', label = 'door_rf',  isDoor = true },
+    { bone = 'bonnet',       part = 4, item = 'vehicle_hood', label = 'hood',     isDoor = true, bonus = { 'car-battery' } },
+    { bone = 'wheel_lf',     part = 0, item = 'veh_wheels',   label = 'wheel_lf', isWheel = true },
+    { bone = 'wheel_lr',     part = 2, item = 'veh_wheels',   label = 'wheel_lr', isWheel = true },
+    { bone = 'wheel_rr',     part = 3, item = 'veh_wheels',   label = 'wheel_rr', isWheel = true },
+    { bone = 'wheel_rf',     part = 1, item = 'veh_wheels',   label = 'wheel_rf', isWheel = true },
+}
+
+-- Item given to the job owner once every part has been removed
+-- type: string | false
+Config.FinishReward = 'veh_suspension'
+
+-- Server-side anti-exploit thresholds (distances in meters, times in milliseconds)
+-- type: table
+Config.Security = {
+    PedDistance      = 10.0, -- max distance to the job ped to request a job
+    SellDistance     = 10.0, -- max distance to the sell ped to sell parts
+    ScrapDistance    = 15.0, -- max distance from the vehicle to the scrap point to start scrapping
+    PartDistance     = 6.0,  -- max distance from the player to the vehicle to remove a part
+    PartnerDistance  = 20.0, -- max distance between owner and partner when assigning
+    PartInterval     = 2000, -- min time between two part removals by the same player
+    SpawnClearRadius = 3.0,  -- spawn point is skipped if a vehicle is within this radius
+    MaxAverageSpeed  = 60.0, -- m/s (~216 km/h); faster spawn->scrap deliveries are treated as teleports
+    WarnThrottle     = 30,   -- seconds between suspicious-request logs for the same player
+}
+
+-- Job time limits in minutes. A job that exceeds them is cancelled and its scrap point released.
+-- type: table
+Config.TimeLimit = {
+    Pickup = 20, -- from accepting the job until scrapping starts
+    Scrap  = 10, -- from starting to scrap until every part is removed
 }

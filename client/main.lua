@@ -76,6 +76,7 @@ function ObtainPedProperties(data)
             TaskStartScenarioInPlace(pedEntity, pedData.scenario, 0, true)
         end
 
+        exports.ox_target:removeLocalEntity(pedEntity, 'request_chop_job')
         exports.ox_target:addLocalEntity(pedEntity, {
             {
                 name = 'request_chop_job',
@@ -83,21 +84,19 @@ function ObtainPedProperties(data)
                 label = _L('request_job'),
                 distance = 2.0,
                 onSelect = function()
-                    local scrapLocation, spawnPoint = ClientUtils.GetRandomScrapLocationAndSpawnPoint()
-                    if not scrapLocation and not spawnPoint then return end
-                    if scrapLocation == 'cd' then return end
+                    if ClientUtils.IsOnCooldown() then return end
 
-                    local vehicleModel = Config.Vehicles[math.random(1, #Config.Vehicles)]
-                    local status, netId = lib.callback.await('chopshop:server:requestJob', false, scrapLocation,
-                        spawnPoint, vehicleModel)
+                    local status, netId, scrapLocation, spawnPoint = lib.callback.await('chopshop:server:requestJob',
+                        false)
 
                     if status == 'success' then
                         ClientUtils.SetBlips({ spawnPoint = spawnPoint, scrapLocation = scrapLocation }, netId)
                     elseif status == 'already_working' then
                         Editable.Client.Notify({ type = 'error', description = _L('already_working') })
                     elseif status == 'cooldown' then
-                        -- handled in GetRandomScrapLocationAndSpawnPoint usually but failsafe
                         Editable.Client.Notify({ type = 'error', description = _L('cooldown_msg', 0) })
+                    elseif status == 'no_scrap' then
+                        Editable.Client.Notify({ type = 'error', description = _L('no_scrap_available') })
                     else
                         Editable.Client.Notify({ type = 'error', description = _L('error_starting') })
                     end
@@ -130,6 +129,7 @@ function ObtainSellPedProperties(data)
             TaskStartScenarioInPlace(pedEntity, pedData.scenario, 0, true)
         end
 
+        exports.ox_target:removeLocalEntity(pedEntity, 'sell_chop_items')
         exports.ox_target:addLocalEntity(pedEntity, {
             {
                 name = 'sell_chop_items',
@@ -215,31 +215,15 @@ RegisterNetEvent('chopshop:client:brokePart', function(netid, part)
         BreakOffVehicleWheel(vehicleEntity, part.part, true, false, true, false)
     end
 
-    if ClientInteract and ClientInteract.IncreaseQuantity then
-        ClientInteract.IncreaseQuantity()
-    end
+    ClientInteract.MarkPartRemoved(netid, part.bone)
 end)
 
-RegisterNetEvent('chopshop:client:sendVehicleToScrap', function(vehicleData)
-    local vehicleEntity
-    local timeout = 0
-
-    repeat
-        vehicleEntity = NetworkGetEntityFromNetworkId(vehicleData.vehicle)
-        Wait(100)
-        timeout = timeout + 1
-    until (DoesEntityExist(vehicleEntity) and vehicleEntity ~= 0) or timeout >= 50
-
-    if not DoesEntityExist(vehicleEntity) or vehicleEntity == 0 then
-        return
-    end
-
-    Wait(1000)
-    ClientInteract.StartVehicleScrap(vehicleEntity, false)
+RegisterNetEvent('chopshop:client:partnerInvite', function(data)
+    ClientInteract.OnPartnerInvite(data)
 end)
 
-RegisterNetEvent('chopshop:client:syncFinish', function()
-    ObtainPedProperties()
+RegisterNetEvent('chopshop:client:jobFinished', function(netId, isOwner, reason)
+    ClientInteract.OnJobFinished(netId, isOwner, reason)
 end)
 
 RegisterNetEvent('chopshop:client:playerLoaded', function()
@@ -247,9 +231,8 @@ RegisterNetEvent('chopshop:client:playerLoaded', function()
 end)
 
 exports('GetJobStatus', function()
-    -- Example export
     return {
-        active = (quantity > 0),
+        active = ClientInteract.HasActiveJob(),
         pedCoords = Config.Ped.Coords
     }
 end)

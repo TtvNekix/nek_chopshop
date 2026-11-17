@@ -1,7 +1,11 @@
 ClientInteract = {}
 
-local quantity = 0
-local CurrentPartner = nil
+-- Current job as seen by this client: { netId, plate, vehicle, owner, parts = { [bone] = { removed } } }
+-- The server owns the real state; this is only a mirror for targets and UI.
+local ActiveJob = nil
+
+local PART_DEFS = {}
+for _, def in ipairs(Config.ChopParts or {}) do PART_DEFS[def.bone] = def end
 
 function ClientInteract.GanzuarVehiculo()
     local success = lib.skillCheck({ 'easy', 'easy', 'medium' }, { 'e' })
@@ -9,6 +13,13 @@ function ClientInteract.GanzuarVehiculo()
 end
 
 function ClientInteract.SetupVehicleLockpick(vehicleEntity, pickupBlip, dropoffBlip, scrapLocation)
+    ActiveJob = {
+        netId = NetworkGetNetworkIdFromEntity(vehicleEntity),
+        vehicle = vehicleEntity,
+        owner = true,
+        blips = { pickupBlip, dropoffBlip },
+    }
+
     exports.ox_target:addLocalEntity(vehicleEntity, {
         {
             name = 'lockpick_chop_vehicle',
@@ -74,6 +85,13 @@ function ClientInteract.BeforeScrap(vehicleEntity, dropoffBlip)
 
     exports.ox_target:removeLocalEntity(vehicleEntity)
 
+    local function beginScrap()
+        if ActiveJob and ActiveJob.parts then return true end -- already started
+        if DoesBlipExist(dropoffBlip) then RemoveBlip(dropoffBlip) end
+        FreezeEntityPosition(vehicleEntity, false)
+        return ClientInteract.StartVehicleScrap(vehicleEntity, true)
+    end
+
     exports.ox_target:addLocalEntity(vehicleEntity, {
         {
             name = 'start_scrap',
@@ -89,11 +107,7 @@ function ClientInteract.BeforeScrap(vehicleEntity, dropoffBlip)
                             title = _L('init_scrap'),
                             description = _L('init_scrap_desc'),
                             icon = 'circle',
-                            onSelect = function()
-                                if DoesBlipExist(dropoffBlip) then RemoveBlip(dropoffBlip) end
-                                FreezeEntityPosition(vehicleEntity, false)
-                                ClientInteract.StartVehicleScrap(vehicleEntity, true)
-                            end,
+                            onSelect = beginScrap,
                         },
                         {
                             title = _L('designate_partner'),
@@ -103,22 +117,19 @@ function ClientInteract.BeforeScrap(vehicleEntity, dropoffBlip)
                                 local playersNear = lib.getNearbyPlayers(GetEntityCoords(PlayerPedId()), 20.0, false)
                                 local options = {}
                                 for _, p in pairs(playersNear) do
+                                    local serverId = GetPlayerServerId(p.id)
                                     table.insert(options, {
-                                        title = Bridge.GetName(p.id) .. ' [' .. GetPlayerServerId(p.id) .. ']',
+                                        title = Bridge.GetName(p.id) .. ' [' .. serverId .. ']',
                                         onSelect = function()
-                                            lib.callback('chopshop:server:sendVehicleToScrap', false, function(ok)
-                                                if ok then
-                                                    CurrentPartner = GetPlayerServerId(p.id)
-                                                    Editable.Client.Notify({ type = 'success', description = _L(
-                                                    'partner_assigned') })
-                                                    if DoesBlipExist(dropoffBlip) then RemoveBlip(dropoffBlip) end
-                                                    FreezeEntityPosition(vehicleEntity, false)
-                                                    ClientInteract.StartVehicleScrap(vehicleEntity, true)
-                                                else
-                                                    Editable.Client.Notify({ type = 'error', description = _L(
-                                                    'error_assigning') })
-                                                end
-                                            end, GetVehicleNumberPlateText(vehicleEntity), GetPlayerServerId(p.id))
+                                            -- The server only accepts a partner once scrapping has started
+                                            if not beginScrap() then return end
+
+                                            local ok = lib.callback.await('chopshop:server:sendVehicleToScrap', false,
+                                                ActiveJob and ActiveJob.plate, serverId)
+                                            Editable.Client.Notify({
+                                                type = ok and 'success' or 'error',
+                                                description = _L(ok and 'partner_invited' or 'error_assigning')
+                                            })
                                         end
                                     })
                                 end
@@ -136,150 +147,156 @@ function ClientInteract.BeforeScrap(vehicleEntity, dropoffBlip)
             end
         }
     })
-
-    TriggerEvent('chopshop:client:syncFinish') -- Re-init ped target if needed
 end
 
-function ClientInteract.StartVehicleScrap(vehicleEntity, owner)
+local function playRemoveAnim(vehicleEntity, def)
+    local ped = PlayerPedId()
+    if def.bone == 'bonnet' then
+        lib.playAnim(ped, 'mini@repair', 'fixing_a_ped', 8.0, 8.0, -1, 1, 0, false, false, false)
+        return
+    end
+
+    local vehiclePos = GetEntityCoords(vehicleEntity)
+    TaskTurnPedToFaceCoord(ped, vehiclePos.x, vehiclePos.y, GetEntityCoords(ped).z, 0)
+    Wait(1000)
+    SetEntityHeading(ped, (GetEntityHeading(ped) + 180.0) % 360.0)
+    lib.playAnim(ped, 'amb@world_human_vehicle_mechanic@male@base', 'base', 8.0, 8.0, -1, 1, 0, false, false, false)
+end
+
+-- Returns true when scrapping started for this client.
+-- `knownPlate` is the server plate (partners receive it with the invite).
+function ClientInteract.StartVehicleScrap(vehicleEntity, owner, knownPlate)
+    local parts, plate
+
+    if owner then
+        -- Report which configured bones this model has; the server filters them again
+        local bones = {}
+        for bone in pairs(PART_DEFS) do
+            if GetEntityBoneIndexByName(vehicleEntity, bone) ~= -1 then bones[#bones + 1] = bone end
+        end
+        parts, plate = lib.callback.await('chopshop:server:startScrap', false, bones)
+    else
+        parts, plate = lib.callback.await('chopshop:server:getParts', false, knownPlate)
+    end
+
+    if not parts then
+        -- Keep the start target so the owner can retry (e.g. after re-parking the vehicle)
+        Editable.Client.Notify({ type = 'error', description = _L('scrap_rejected') })
+        return false
+    end
+
     exports.ox_target:removeLocalEntity(vehicleEntity, { 'start_scrap' })
 
-    local chopParts = {
-        { removed = false, part = 0, bone = 'door_dside_f', item = 'vehicle_door', text = _L('door_lf'),  isDoor = true },
-        { removed = false, part = 2, bone = 'door_dside_r', item = 'vehicle_door', text = _L('door_lr'),  isDoor = true },
-        { removed = false, part = 3, bone = 'door_pside_r', item = 'vehicle_door', text = _L('door_rr'),  isDoor = true },
-        { removed = false, part = 1, bone = 'door_pside_f', item = 'vehicle_door', text = _L('door_rf'),  isDoor = true },
-        { removed = false, part = 4, bone = 'bonnet',       item = 'vehicle_hood', text = _L('hood'),     isDoor = true },
-        { removed = false, part = 0, bone = 'wheel_lf',     item = 'veh_wheels',   text = _L('wheel_lf'), isWheel = true },
-        { removed = false, part = 2, bone = 'wheel_lr',     item = 'veh_wheels',   text = _L('wheel_lr'), isWheel = true },
-        { removed = false, part = 3, bone = 'wheel_rr',     item = 'veh_wheels',   text = _L('wheel_rr'), isWheel = true },
-        { removed = false, part = 1, bone = 'wheel_rf',     item = 'veh_wheels',   text = _L('wheel_rf'), isWheel = true },
+    ActiveJob = {
+        netId = NetworkGetNetworkIdFromEntity(vehicleEntity),
+        plate = plate,
+        vehicle = vehicleEntity,
+        owner = owner,
+        parts = parts,
+        blips = ActiveJob and ActiveJob.blips,
     }
 
-    local partsRemoved = {}
-
-    local function syncParts()
-        local serverParts = lib.callback.await('chopshop:server:updatePartsToRemove', false,
-            GetVehicleNumberPlateText(vehicleEntity), partsRemoved)
-        if serverParts then partsRemoved = serverParts end
-    end
-
-    for i = 1, #chopParts do
-        local p = chopParts[i]
-        if GetEntityBoneIndexByName(vehicleEntity, p.bone) ~= -1 then
-            table.insert(partsRemoved, p)
-        end
-    end
-    syncParts()
-
-    local function isRemoved(bone)
-        for _, p in ipairs(partsRemoved) do
-            if p.bone == bone then return p.removed end
-        end
-        return true
-    end
-
-    local function getPart(bone)
-        for _, p in ipairs(partsRemoved) do
-            if p.bone == bone then return p end
-        end
-        return nil
-    end
-
     local params = {}
-    for _, p in ipairs(partsRemoved) do
-        table.insert(params, {
-            name = 'scrap_' .. p.bone,
-            icon = 'fas fa-tools',
-            label = _L('remove_part', p.text),
-            bones = { p.bone },
-            distance = 1.5,
-            canInteract = function(entity, distance, coords, name, bone)
-                return not isRemoved(p.bone)
-            end,
-            onSelect = function(data)
-                local part = getPart(p.bone)
-                if not part then return end
+    for bone in pairs(parts) do
+        local def = PART_DEFS[bone]
+        if def then
+            local text = _L(def.label)
+            table.insert(params, {
+                name = 'scrap_' .. bone,
+                icon = 'fas fa-tools',
+                label = _L('remove_part', text),
+                bones = { bone },
+                distance = 1.5,
+                canInteract = function()
+                    return ActiveJob ~= nil and ActiveJob.parts ~= nil and ActiveJob.parts[bone] ~= nil
+                        and not ActiveJob.parts[bone].removed
+                end,
+                onSelect = function()
+                    local canAddItem = lib.callback.await('chopshop:server:canAddItem', false, def.item, 1)
+                    if not canAddItem then
+                        Editable.Client.Notify({ type = 'error', description = _L('no_space') })
+                        return
+                    end
 
-                local canAddItem = lib.callback.await('chopshop:server:canAddItem', false, part.item, 1)
-                if not canAddItem then
-                    Editable.Client.Notify({ type = 'error', description = _L('no_space') })
-                    return
-                end
+                    playRemoveAnim(vehicleEntity, def)
 
-                if part.item == 'vehicle_hood' then
-                    lib.playAnim(PlayerPedId(), 'mini@repair', 'fixing_a_ped', 8.0, 8.0, -1, 1, 0, false, false, false)
-                else
-                    local ped = PlayerPedId()
-                    local pos = GetEntityCoords(ped)
-                    local vehiclePos = GetEntityCoords(vehicleEntity)
-                    local lookAt = vec3(vehiclePos.x, vehiclePos.y, pos.z)
-                    TaskTurnPedToFaceCoord(ped, lookAt.x, lookAt.y, lookAt.z, 0)
-                    Wait(1000)
-                    local currentHeading = GetEntityHeading(ped)
-                    SetEntityHeading(ped, (currentHeading + 180.0) % 360.0)
-
-                    lib.playAnim(ped, 'amb@world_human_vehicle_mechanic@male@base', 'base', 8.0, 8.0, -1, 1, 0,
-                        false, false, false)
-                end
-
-                if lib.progressCircle({
+                    local completed = lib.progressCircle({
                         duration = 2500,
-                        label = _L('disassembling', part.text),
+                        label = _L('disassembling', text),
                         position = 'bottom',
                         useWhileDead = false,
                         canCancel = true,
                         disable = { move = true, car = true }
-                    }) then
+                    })
                     ClearPedTasks(PlayerPedId())
-                    part.removed = true
+                    if not completed then return end
 
-                    TriggerServerEvent('chopshop:server:brokePart', NetworkGetNetworkIdFromEntity(vehicleEntity), part)
-
-                    if part.item == 'vehicle_hood' then
-                        lib.callback.await('chopshop:server:giveItem', false, 'car-battery')
-                        lib.callback.await('chopshop:server:giveItem', false, part.item)
-                    else
-                        lib.callback.await('chopshop:server:giveItem', false, part.item)
+                    local ok, reason = lib.callback.await('chopshop:server:removePart', false, plate, bone)
+                    if ok then
+                        Editable.Client.Notify({ type = 'success', description = _L('disassembled') })
+                    elseif reason == 'no_space' then
+                        Editable.Client.Notify({ type = 'error', description = _L('no_space') })
                     end
-
-                    Editable.Client.Notify({ type = 'success', description = _L('disassembled') })
-                    syncParts()
-                else
-                    ClearPedTasks(PlayerPedId())
                 end
-            end
-        })
+            })
+        end
     end
 
     exports.ox_target:addLocalEntity(vehicleEntity, params)
-
-    CreateThread(function()
-        local maxParts = #partsRemoved
-        while quantity < maxParts and DoesEntityExist(vehicleEntity) do
-            Wait(1000)
-        end
-
-        Wait(2000)
-        Wait(2000)
-        if owner and DoesEntityExist(vehicleEntity) then
-            if CurrentPartner then
-                TriggerServerEvent('chopshop:server:syncFinish', CurrentPartner)
-                CurrentPartner = nil
-            end
-            lib.callback.await('chopshop:server:giveItem', false, 'veh_suspension')
-            Editable.Client.Notify({ type = 'success', description = _L('finished') })
-            lib.callback.await('chopshop:server:removeWorker', false, Bridge.GetIdentifier(),
-                GetVehicleNumberPlateText(vehicleEntity))
-
-            NetworkFadeOutEntity(vehicleEntity, true, false)
-            Wait(2000)
-            DeleteEntity(vehicleEntity)
-        end
-        TriggerEvent('chopshop:client:syncFinish')
-        quantity = 0
-    end)
+    return true
 end
 
-function ClientInteract.IncreaseQuantity()
-    quantity = quantity + 1
+function ClientInteract.MarkPartRemoved(netId, bone)
+    if ActiveJob and ActiveJob.netId == netId and ActiveJob.parts and ActiveJob.parts[bone] then
+        ActiveJob.parts[bone].removed = true
+    end
+end
+
+-- reason: 'finished' | 'expired' | 'vehicle_lost' | 'cancelled'
+function ClientInteract.OnJobFinished(netId, isOwner, reason)
+    if not ActiveJob or ActiveJob.netId ~= netId then return end
+
+    local vehicle = ActiveJob.vehicle
+    for _, blip in ipairs(ActiveJob.blips or {}) do
+        if DoesBlipExist(blip) then RemoveBlip(blip) end
+    end
+    ActiveJob = nil
+
+    if vehicle and DoesEntityExist(vehicle) then
+        exports.ox_target:removeLocalEntity(vehicle)
+        if reason == 'finished' then NetworkFadeOutEntity(vehicle, true, false) end
+    end
+
+    if reason == 'finished' then
+        if isOwner then Editable.Client.Notify({ type = 'success', description = _L('finished') }) end
+    else
+        Editable.Client.Notify({ type = 'error', description = _L('job_expired') })
+    end
+end
+
+-- Another player invited us to help scrap their vehicle.
+function ClientInteract.OnPartnerInvite(data)
+    if ActiveJob then
+        lib.callback.await('chopshop:server:answerInvite', false, data.plate, false)
+        return
+    end
+
+    local answer = lib.alertDialog({
+        header = _L('partner_invite_title'),
+        content = _L('partner_invite_desc', data.from or '?'),
+        centered = true,
+        cancel = true,
+    })
+
+    local ok = lib.callback.await('chopshop:server:answerInvite', false, data.plate, answer == 'confirm')
+    if not ok then return end
+
+    local vehicleEntity = NetworkGetEntityFromNetworkId(data.vehicle)
+    if not vehicleEntity or vehicleEntity == 0 or not DoesEntityExist(vehicleEntity) then return end
+
+    ClientInteract.StartVehicleScrap(vehicleEntity, false, data.plate)
+end
+
+function ClientInteract.HasActiveJob()
+    return ActiveJob ~= nil
 end
