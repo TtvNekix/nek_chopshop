@@ -12,13 +12,13 @@ function ClientInteract.GanzuarVehiculo()
     return success
 end
 
+-- Called right after the server accepted the job.
+function ClientInteract.BeginJob(netId, blips, point)
+    ActiveJob = { netId = netId, owner = true, blips = blips, point = point }
+end
+
 function ClientInteract.SetupVehicleLockpick(vehicleEntity, pickupBlip, dropoffBlip, scrapLocation)
-    ActiveJob = {
-        netId = NetworkGetNetworkIdFromEntity(vehicleEntity),
-        vehicle = vehicleEntity,
-        owner = true,
-        blips = { pickupBlip, dropoffBlip },
-    }
+    if ActiveJob then ActiveJob.vehicle = vehicleEntity end
 
     exports.ox_target:addLocalEntity(vehicleEntity, {
         {
@@ -80,17 +80,31 @@ function ClientInteract.WaitForArrival(vehicleEntity, dropoffBlip, scrapLocation
     end)
 end
 
+local function openPartnerMenu(vehicleEntity)
+    local options = {}
+    for _, p in pairs(lib.getNearbyPlayers(GetEntityCoords(PlayerPedId()), 20.0, false)) do
+        local serverId = GetPlayerServerId(p.id)
+        options[#options + 1] = {
+            title = Bridge.GetName(p.id) .. ' [' .. serverId .. ']',
+            onSelect = function()
+                local ok = lib.callback.await('chopshop:server:sendVehicleToScrap', false,
+                    ActiveJob and ActiveJob.plate, serverId)
+                Editable.Client.Notify({
+                    type = ok and 'success' or 'error',
+                    description = _L(ok and 'partner_invited' or 'error_assigning')
+                })
+            end
+        }
+    end
+
+    lib.registerContext({ id = 'share_with', title = _L('select_partner'), options = options })
+    lib.showContext('share_with')
+end
+
 function ClientInteract.BeforeScrap(vehicleEntity, dropoffBlip)
     Editable.Client.Notify({ description = _L('parked_scrap'), type = 'success' })
 
     exports.ox_target:removeLocalEntity(vehicleEntity)
-
-    local function beginScrap()
-        if ActiveJob and ActiveJob.parts then return true end -- already started
-        if DoesBlipExist(dropoffBlip) then RemoveBlip(dropoffBlip) end
-        FreezeEntityPosition(vehicleEntity, false)
-        return ClientInteract.StartVehicleScrap(vehicleEntity, true)
-    end
 
     exports.ox_target:addLocalEntity(vehicleEntity, {
         {
@@ -99,51 +113,11 @@ function ClientInteract.BeforeScrap(vehicleEntity, dropoffBlip)
             label = _L('start_scrap'),
             distance = 2.0,
             onSelect = function()
-                lib.registerContext({
-                    id = 'share_menu',
-                    title = _L('share_menu_title'),
-                    options = {
-                        {
-                            title = _L('init_scrap'),
-                            description = _L('init_scrap_desc'),
-                            icon = 'circle',
-                            onSelect = beginScrap,
-                        },
-                        {
-                            title = _L('designate_partner'),
-                            description = _L('designate_partner_desc'),
-                            icon = 'user',
-                            onSelect = function()
-                                local playersNear = lib.getNearbyPlayers(GetEntityCoords(PlayerPedId()), 20.0, false)
-                                local options = {}
-                                for _, p in pairs(playersNear) do
-                                    local serverId = GetPlayerServerId(p.id)
-                                    table.insert(options, {
-                                        title = Bridge.GetName(p.id) .. ' [' .. serverId .. ']',
-                                        onSelect = function()
-                                            -- The server only accepts a partner once scrapping has started
-                                            if not beginScrap() then return end
-
-                                            local ok = lib.callback.await('chopshop:server:sendVehicleToScrap', false,
-                                                ActiveJob and ActiveJob.plate, serverId)
-                                            Editable.Client.Notify({
-                                                type = ok and 'success' or 'error',
-                                                description = _L(ok and 'partner_invited' or 'error_assigning')
-                                            })
-                                        end
-                                    })
-                                end
-                                lib.registerContext({
-                                    id = 'share_with',
-                                    title = _L('select_partner'),
-                                    options = options
-                                })
-                                lib.showContext('share_with')
-                            end
-                        }
-                    }
-                })
-                lib.showContext('share_menu')
+                if ActiveJob and ActiveJob.parts then return end -- already started
+                FreezeEntityPosition(vehicleEntity, false)
+                if ClientInteract.StartVehicleScrap(vehicleEntity, true) then
+                    if DoesBlipExist(dropoffBlip) then RemoveBlip(dropoffBlip) end
+                end
             end
         }
     })
@@ -194,6 +168,7 @@ function ClientInteract.StartVehicleScrap(vehicleEntity, owner, knownPlate)
         owner = owner,
         parts = parts,
         blips = ActiveJob and ActiveJob.blips,
+        point = ActiveJob and ActiveJob.point,
     }
 
     local params = {}
@@ -242,6 +217,19 @@ function ClientInteract.StartVehicleScrap(vehicleEntity, owner, knownPlate)
         end
     end
 
+    if owner then
+        params[#params + 1] = {
+            name = 'invite_chop_partner',
+            icon = 'fas fa-user-plus',
+            label = _L('invite_partner'),
+            distance = 2.0,
+            canInteract = function()
+                return ActiveJob ~= nil and ActiveJob.owner == true
+            end,
+            onSelect = function() openPartnerMenu(vehicleEntity) end,
+        }
+    end
+
     exports.ox_target:addLocalEntity(vehicleEntity, params)
     return true
 end
@@ -260,6 +248,7 @@ function ClientInteract.OnJobFinished(netId, isOwner, reason)
     for _, blip in ipairs(ActiveJob.blips or {}) do
         if DoesBlipExist(blip) then RemoveBlip(blip) end
     end
+    if ActiveJob.point then ActiveJob.point:remove() end
     ActiveJob = nil
 
     if vehicle and DoesEntityExist(vehicle) then

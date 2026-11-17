@@ -52,6 +52,9 @@ function ClientUtils.SetBlips(data, vehicleSpawnedNWID)
         distance = 30.0
     })
 
+    -- Track the job from the start so a server cancellation can clean blips and the point
+    ClientInteract.BeginJob(vehicleSpawnedNWID, { pickupBlip, dropoffBlip }, vehiclePoint)
+
     function vehiclePoint:onEnter()
         SetNetworkIdExistsOnAllMachines(vehicleSpawnedNWID, true)
         SetNetworkIdCanMigrate(vehicleSpawnedNWID, true)

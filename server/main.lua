@@ -7,14 +7,13 @@ local SELL_PED = {}
 --     scrap = scrapLocation, spawn = vector4, model = string,
 --     vehicle = netId, entity = handle, plate = string,
 --     parts = { [bone] = { removed = bool } }, total = n, removedCount = n,
---     partner = source | nil, pendingPartner = source | nil,
+--     partner = source | nil, pendingPartner = source | nil, invitedAt = os.time() | nil,
 --     startedAt = os.time(), scrapStartedAt = os.time() | nil,
 --     session = { items = { [item] = count }, money = n },
 -- }
 local Jobs = {}
 local JobsByPlate = {}    -- [plate] = identifier
 local ScrapsOccupied = {} -- [scrap name] = identifier
-local ModelParts = {}     -- [model] = { [bone] = true } first bone report per model, reused afterwards
 local LastPartRemoval = {} -- [source] = GetGameTimer()
 local LastWarn = {}       -- [source] = os.time()
 
@@ -86,10 +85,11 @@ end
 
 -- Returns the job vehicle only if it is still the exact entity we spawned
 -- (guards against network ids being reused by an unrelated vehicle).
+-- Identity is a server-set state bag: server-set plates only sync once a client owns the entity.
 local function getJobVehicle(job)
     if not job.entity or not DoesEntityExist(job.entity) then return nil end
     if NetworkGetEntityFromNetworkId(job.vehicle) ~= job.entity then return nil end
-    if trim(GetVehicleNumberPlateText(job.entity)) ~= job.plate then return nil end
+    if Entity(job.entity).state.chopJob ~= job.ownerCid then return nil end
     return job.entity
 end
 
@@ -103,12 +103,18 @@ local function getJobByPlate(plate)
     return cid and Jobs[cid] or nil
 end
 
--- True if the player owns a job, is a partner of one, or has a pending invite.
+local INVITE_TTL = 30 -- seconds an invite stays valid (it only blocks the invitee while open)
+
+local function hasOpenInvite(job, source)
+    return job.pendingPartner == source and job.invitedAt and os.time() - job.invitedAt <= INVITE_TTL
+end
+
+-- True if the player owns a job, is a partner of one, or has an open invite.
 local function isBusy(source)
     local cid = Bridge.GetIdentifier(source)
     if cid and Jobs[cid] then return true end
     for _, job in pairs(Jobs) do
-        if job.partner == source or job.pendingPartner == source then return true end
+        if job.partner == source or hasOpenInvite(job, source) then return true end
     end
     return false
 end
@@ -445,6 +451,7 @@ lib.callback.register('chopshop:server:requestJob', function(source)
 
     SetVehicleNumberPlateText(vehicle, plate)
     SetVehicleDoorsLocked(vehicle, 2)
+    Entity(vehicle).state:set('chopJob', cid, false)
 
     job.entity = vehicle
     job.vehicle = NetworkGetNetworkIdFromEntity(vehicle)
@@ -486,19 +493,19 @@ lib.callback.register('chopshop:server:startScrap', function(source, bones)
         return false
     end
 
-    local known = ModelParts[job.model]
     local reported = {}
     for _, bone in ipairs(bones) do
-        if type(bone) == 'string' and PARTS_BY_BONE[bone] and (not known or known[bone]) then
-            reported[bone] = true
-        end
+        if type(bone) == 'string' then reported[bone] = true end
     end
-    if not known then ModelParts[job.model] = reported end
 
     local parts, total = {}, 0
-    for bone in pairs(reported) do
-        parts[bone] = { removed = false }
-        total = total + 1
+    for bone, def in pairs(PARTS_BY_BONE) do
+        -- Optional parts (e.g. rear doors) are only included when the model has them;
+        -- everything else is always part of the job, whatever the client claims.
+        if not def.optional or reported[bone] then
+            parts[bone] = { removed = false }
+            total = total + 1
+        end
     end
     if total == 0 then return false end
 
@@ -520,6 +527,7 @@ end)
 lib.callback.register('chopshop:server:sendVehicleToScrap', function(source, plate, coworker)
     local job = getJobByPlate(plate)
     if not job or job.owner ~= source or job.state ~= 'scrapping' or job.partner then return false end
+    if job.pendingPartner and hasOpenInvite(job, job.pendingPartner) then return false end
 
     coworker = toPlayerId(coworker)
     if not coworker or coworker == source or not Bridge.GetIdentifier(coworker) then return false end
@@ -531,6 +539,7 @@ lib.callback.register('chopshop:server:sendVehicleToScrap', function(source, pla
     end
 
     job.pendingPartner = coworker
+    job.invitedAt = os.time()
     TriggerClientEvent('chopshop:client:partnerInvite', coworker, {
         vehicle = job.vehicle,
         plate = job.plate,
@@ -541,9 +550,10 @@ end)
 
 lib.callback.register('chopshop:server:answerInvite', function(source, plate, accepted)
     local job = getJobByPlate(plate)
-    if not job or job.pendingPartner ~= source then return false end
+    if not job or not hasOpenInvite(job, source) then return false end
 
     job.pendingPartner = nil
+    job.invitedAt = nil
     if accepted ~= true or job.state ~= 'scrapping' or job.partner then return false end
 
     local vehicle = getJobVehicle(job)

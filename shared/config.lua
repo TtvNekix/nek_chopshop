@@ -137,6 +137,7 @@ Config.Locales = {
     scrap_rejected = 'El vehículo no está en el desguace.',
     job_expired = 'Se acabó el tiempo. El trabajo ha sido cancelado.',
     partner_invited = 'Invitación enviada.',
+    invite_partner = 'Invitar Compañero',
     partner_invite_title = 'Desguace',
     partner_invite_desc = '%s te invita a desguazar un vehículo con él. ¿Aceptas?',
     need_lockpick = 'Necesitas una ganzúa',
@@ -391,10 +392,11 @@ Config.Vehicles = {
 -- Parts that can be removed from the job vehicle.
 -- The server only rewards parts listed here, so this table is the reward whitelist.
 -- label: key in Config.Locales | part: door index / wheel index | bonus: extra items given with the part
+-- optional: only included if the vehicle model has that bone (2-door vs 4-door bodies)
 Config.ChopParts = {
     { bone = 'door_dside_f', part = 0, item = 'vehicle_door', label = 'door_lf',  isDoor = true },
-    { bone = 'door_dside_r', part = 2, item = 'vehicle_door', label = 'door_lr',  isDoor = true },
-    { bone = 'door_pside_r', part = 3, item = 'vehicle_door', label = 'door_rr',  isDoor = true },
+    { bone = 'door_dside_r', part = 2, item = 'vehicle_door', label = 'door_lr',  isDoor = true, optional = true },
+    { bone = 'door_pside_r', part = 3, item = 'vehicle_door', label = 'door_rr',  isDoor = true, optional = true },
     { bone = 'door_pside_f', part = 1, item = 'vehicle_door', label = 'door_rf',  isDoor = true },
     { bone = 'bonnet',       part = 4, item = 'vehicle_hood', label = 'hood',     isDoor = true, bonus = { 'car-battery' } },
     { bone = 'wheel_lf',     part = 0, item = 'veh_wheels',   label = 'wheel_lf', isWheel = true },
