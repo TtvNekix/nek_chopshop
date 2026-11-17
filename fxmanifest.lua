@@ -4,11 +4,12 @@ lua54 'yes'
 
 author 'Nekix'
 description 'Scrapyard System By Nekix'
-version '1.0.0'
+version '1.1.0'
 
 shared_scripts {
     '@ox_lib/init.lua',
-    'shared/*.lua'
+    'shared/config.lua',
+    'shared/framework.lua'
 }
 
 server_scripts {

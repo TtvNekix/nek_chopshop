@@ -16,10 +16,7 @@ function ClientInteract.SetupVehicleLockpick(vehicleEntity, pickupBlip, dropoffB
             label = _L('lockpick_vehicle'),
             distance = 2.0,
             onSelect = function()
-                local hasLockpick = exports.ox_inventory:Search('count', 'lockpick') > 0 or
-                    exports.ox_inventory:Search('count', 'advanced_lockpick') > 0
-
-                if not hasLockpick then
+                if not Bridge.HasLockpick() then
                     Editable.Client.Notify({ description = _L('need_lockpick'), type = 'error' })
                     return
                 end

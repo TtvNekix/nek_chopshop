@@ -9,7 +9,10 @@ local Sessions = {} -- [identifier] = { items = { [item]=cant }, money = total }
 
 local spawned = false
 
-RegisterNetEvent("esx:onPlayerSpawn", function()
+-- Framework-agnostic: the client fires this once its character is loaded
+-- (covers ESX, QBCore and Qbox, plus resource restarts with players online)
+RegisterNetEvent('chopshop:server:playerReady', function()
+    local source = source
     if not spawned then
         SpawnPed(Config.Ped)
         if Config.SellPed and Config.SellPed.Enable then

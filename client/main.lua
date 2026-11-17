@@ -5,6 +5,8 @@ local SELL_PED = {}
 CreateThread(function()
     while not Bridge.GetIdentifier() do Wait(10) end
 
+    TriggerServerEvent('chopshop:server:playerReady')
+
     if Config.Ped then
         if Config.Ped.Blip and Config.Ped.Blip.Enable then
             local blip = AddBlipForCoord(Config.Ped.Coords.x, Config.Ped.Coords.y, Config.Ped.Coords.z)

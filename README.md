@@ -1,9 +1,9 @@
 # Nekix ChopShop
 
-Advanced Chop Shop system for FiveM, supporting ESX and QBCore.
+Advanced Chop Shop system for FiveM, supporting ESX, QBCore and Qbox.
 
 ## Features
-- **Multi-Framework:** Works with ESX and QBCore out of the box.
+- **Multi-Framework:** Works with ESX, QBCore and Qbox (`qbx_core`) out of the box, with optional auto-detection.
 - **Highly Configurable:** Customize everything from vehicles, locations, payouts, and cooldowns.
 - **Ox Lib & Target:** Uses the latest `ox_lib` and `ox_target` for optimal performance and interaction.
 - **Partner System:** Players can designate a partner to share the job (synced progress/completion).
@@ -22,7 +22,8 @@ Advanced Chop Shop system for FiveM, supporting ESX and QBCore.
 
 | Config Option | Description |
 | :--- | :--- |
-| `Config.Framework` | Set to `'esx'` or `'qbcore'`. |
+| `Config.Framework` | Set to `'esx'`, `'qbcore'`, `'qbox'` or `'auto'` (detects `qbx_core` > `es_extended` > `qb-core`). |
+| `Config.LockpickItems` | Items that allow lockpicking the job vehicle (QBCore/Qbox use `advancedlockpick`, ESX usually `advanced_lockpick`). |
 | `Config.Debug` | Enable debug prints. |
 | `Config.Ped` | Configuration for the NPC ped (model, coords, etc.). |
 | `Config.Discord` | Webhook settings (Name, Avatar, Colors). **Webhook URL is in `editable/server.lua`**. |
@@ -49,7 +50,7 @@ exports.chopshop:GetJobStatus()
 - ox_lib
 - ox_target
 - ox_inventory
-- es_extended OR qb-core
+- es_extended OR qb-core OR qbx_core
 
 ## Ox Inventory Implementation
 

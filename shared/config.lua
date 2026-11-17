@@ -1,11 +1,16 @@
 Config = {}
 
-Config.Version = '1.0'
+Config.Version = '1.1'
 
 -- Framework configuration
 -- type: string
--- options: 'esx' or 'qbcore'
+-- options: 'esx', 'qbcore', 'qbox' or 'auto' (detects qbx_core > es_extended > qb-core)
 Config.Framework = 'esx'
+
+-- Items that allow lockpicking the job vehicle (any one of them is enough)
+-- type: table
+-- ESX usually uses 'advanced_lockpick', QBCore/Qbox use 'advancedlockpick'
+Config.LockpickItems = { 'lockpick', 'advancedlockpick', 'advanced_lockpick' }
 
 -- Enable/Disable debug mode for print statements
 -- type: boolean
