@@ -1,0 +1,314 @@
+/*
+ * The paper: <chop-ticket>, form fields, rubber stamp and buttons.
+ * Shared by every view; view-specific layout lives in views.css.
+ */
+
+/* ---- paper ------------------------------------------------------------ */
+
+chop-ticket {
+  --paper: var(--paper-original);
+  --tilt: -0.35deg;
+  --hole: 0.2rem;
+  --hole-pitch: 0.75rem;
+  position: relative;
+  display: block;
+  isolation: isolate;
+  transform: rotate(var(--tilt));
+  filter: drop-shadow(0 0.15rem 0 rgba(30, 24, 12, 0.35)) drop-shadow(0 0.9rem 1.2rem rgba(0, 0, 0, 0.35));
+}
+
+chop-ticket[tone="canary"] {
+  --paper: var(--paper-canary);
+  --tilt: 0.6deg;
+}
+
+chop-ticket[tone="pink"] {
+  --paper: var(--paper-pink);
+  --tilt: -0.5deg;
+}
+
+/* The copies underneath peek out, so every sheet reads as part of a carbon set. */
+chop-ticket::before,
+chop-ticket::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 1px solid var(--paper-edge);
+  pointer-events: none;
+}
+
+chop-ticket[tone="original"]::before {
+  z-index: -1;
+  background: var(--paper-canary);
+  transform: translate(0.3rem, 0.35rem) rotate(0.5deg);
+}
+
+chop-ticket[tone="original"]::after,
+chop-ticket[tone="canary"]::before {
+  z-index: -2;
+  background: var(--paper-pink);
+  transform: translate(0.6rem, 0.7rem) rotate(1deg);
+}
+
+chop-ticket[tone="canary"]::before {
+  transform: translate(0.3rem, 0.35rem) rotate(-0.8deg);
+}
+
+chop-ticket[tone="canary"]::after,
+chop-ticket[tone="pink"]::before,
+chop-ticket[tone="pink"]::after {
+  content: none;
+}
+
+.ticket__body,
+.ticket__stub {
+  position: relative;
+  background-color: var(--paper);
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .32  0 0 0 0 .27  0 0 0 0 .18  0 0 0 .1 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+
+.ticket__body {
+  padding: 1.1rem var(--gutter) 1.4rem;
+  /* half of each perforation hole, the other half is cut from the stub */
+  -webkit-mask: radial-gradient(circle at 50% 100%, transparent var(--hole), #000 calc(var(--hole) + 0.5px)) 0 0 / var(--hole-pitch) 100% repeat-x;
+  mask: radial-gradient(circle at 50% 100%, transparent var(--hole), #000 calc(var(--hole) + 0.5px)) 0 0 / var(--hole-pitch) 100% repeat-x;
+}
+
+.ticket__body.ruled {
+  background-image:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .32  0 0 0 0 .27  0 0 0 0 .18  0 0 0 .1 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"),
+    repeating-linear-gradient(to bottom, transparent 0 calc(var(--line) - 1px), var(--rule) calc(var(--line) - 1px) var(--line));
+}
+
+.ticket__stub {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.95rem var(--gutter) 0.9rem;
+  -webkit-mask: radial-gradient(circle at 50% 0, transparent var(--hole), #000 calc(var(--hole) + 0.5px)) 0 0 / var(--hole-pitch) 100% repeat-x;
+  mask: radial-gradient(circle at 50% 0, transparent var(--hole), #000 calc(var(--hole) + 0.5px)) 0 0 / var(--hole-pitch) 100% repeat-x;
+}
+
+[data-enter] chop-ticket {
+  animation: ticket-in 260ms var(--ease-paper) both;
+}
+
+@keyframes ticket-in {
+  from {
+    opacity: 0;
+    transform: translateY(1.5rem) rotate(calc(var(--tilt) + 1.2deg));
+  }
+}
+
+/* ---- printed header --------------------------------------------------- */
+
+.ticket__head {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  column-gap: 1rem;
+  padding-bottom: 0.45rem;
+  margin-bottom: 0.9rem;
+  border-bottom: 3px solid var(--ink);
+  box-shadow: 0 3px 0 var(--paper), 0 4px 0 var(--ink);
+}
+
+.ticket__title {
+  grid-column: 1;
+  font-size: 2.5rem;
+  font-weight: 800;
+  line-height: 0.9;
+  text-transform: uppercase;
+  letter-spacing: 0.005em;
+}
+
+.ticket__form {
+  grid-column: 1;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+.ticket__no {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: start;
+  color: var(--stamp);
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.ticket__no b {
+  font-size: 1.35rem;
+}
+
+/* ---- fields: printed label + carbon fill-in on a ruled baseline ------- */
+
+.form {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.field {
+  display: grid;
+  grid-template-columns: 7.5rem 1fr;
+  align-items: end;
+  min-height: var(--line);
+}
+
+.field__label {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--ink-soft);
+  line-height: 1.2;
+  padding-bottom: 0.2rem;
+}
+
+.field__fill {
+  font-family: var(--font-hand);
+  font-size: 1.3rem;
+  line-height: 1.3;
+  color: var(--carbon);
+  border-bottom: 1px solid var(--rule-strong);
+  padding: 0 0.3rem 0.05rem;
+  /* carbon transfer: a touch soft, and never quite on the printed line */
+  text-shadow: 0 0 0.6px var(--carbon-faint);
+  transform: translate(0.1em, -0.05em) rotate(-0.6deg);
+  transform-origin: left bottom;
+}
+
+.field__fill.num {
+  font-family: var(--font-num);
+  font-size: 1.1rem;
+}
+
+chop-ticket[tone="canary"] .field__fill {
+  transform: translate(0.25em, 0.05em) rotate(-1.1deg);
+}
+
+.ticket__result {
+  margin-top: 0.9rem;
+  font-family: var(--font-hand);
+  font-size: 1.2rem;
+  line-height: var(--line);
+  color: var(--carbon);
+}
+
+.ticket__result[data-tone="error"] {
+  color: var(--stamp);
+}
+
+/* ---- rubber stamp ----------------------------------------------------- */
+
+chop-stamp {
+  --stamp-tilt: -9deg;
+  position: absolute;
+  display: inline-block;
+  padding: 0.12em 0.5em 0.08em;
+  font-family: var(--font-print);
+  font-weight: 800;
+  font-size: 1.7rem;
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--stamp);
+  border: 0.17rem solid currentColor;
+  border-radius: 0.25rem;
+  box-shadow: inset 0 0 0 0.12rem var(--paper), inset 0 0 0 0.22rem currentColor;
+  opacity: 0.86;
+  mix-blend-mode: multiply;
+  transform: rotate(var(--stamp-tilt));
+  pointer-events: none;
+  /* uneven ink: the rubber never prints evenly */
+  -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='120'><filter id='s'><feTurbulence type='fractalNoise' baseFrequency='.55' numOctaves='3' seed='7'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  -2.4 0 0 0 1.75'/></filter><rect width='100%' height='100%' filter='url(%23s)'/></svg>") 0 0 / 14rem 7rem;
+  mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='120'><filter id='s'><feTurbulence type='fractalNoise' baseFrequency='.55' numOctaves='3' seed='7'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  -2.4 0 0 0 1.75'/></filter><rect width='100%' height='100%' filter='url(%23s)'/></svg>") 0 0 / 14rem 7rem;
+}
+
+chop-stamp[data-thunk] {
+  animation: stamp-thunk 240ms cubic-bezier(0.55, 0, 0.85, 0.35) both;
+}
+
+@keyframes stamp-thunk {
+  0% {
+    opacity: 0;
+    transform: rotate(var(--stamp-tilt)) scale(1.8);
+  }
+  65% {
+    opacity: 0.95;
+    transform: rotate(var(--stamp-tilt)) scale(0.95);
+  }
+  100% {
+    opacity: 0.86;
+    transform: rotate(var(--stamp-tilt)) scale(1);
+  }
+}
+
+/* ---- buttons ---------------------------------------------------------- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2em;
+  min-height: 2.6rem;
+  padding: 0.35em 1.15em;
+  font-family: var(--font-print);
+  font-size: 1.2rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  background: transparent;
+  border: 2px solid var(--ink);
+  border-radius: 0;
+  cursor: pointer;
+}
+
+.btn:focus-visible {
+  outline: 3px solid var(--carbon);
+  outline-offset: 3px;
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+}
+
+.btn[aria-busy="true"] {
+  cursor: progress;
+}
+
+.btn--ink {
+  background: var(--ink);
+  color: var(--paper-original);
+}
+
+.btn--ink:hover:not(:disabled),
+.btn--line:hover:not(:disabled) {
+  box-shadow: 0.2rem 0.2rem 0 var(--ink-soft);
+  transform: translate(-0.1rem, -0.1rem);
+}
+
+.btn--ink:active:not(:disabled),
+.btn--line:active:not(:disabled) {
+  box-shadow: none;
+  transform: none;
+}
+
+.btn--plain {
+  border-color: transparent;
+  padding-inline: 0.4em;
+  color: var(--ink-soft);
+}
+
+.btn--plain:hover {
+  color: var(--ink);
+  text-decoration: underline 2px;
+  text-underline-offset: 0.2em;
+}
+
+.btn--line {
+  min-height: 2rem;
+  padding: 0.15em 0.75em;
+  font-size: 1rem;
+  border-width: 1.5px;
+  white-space: nowrap;
+}

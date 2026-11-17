@@ -1,0 +1,66 @@
+/**
+ * English fallback dictionary. DEV MODE ONLY: loaded by dev/mock.js, never in game.
+ * In game every string comes from Lua through the `init` message; this file is
+ * also the reference list of keys the Lua locale files must provide.
+ */
+export default {
+  'common.close': 'Close',
+  'common.number': 'No.',
+
+  'board.title': 'Chop shop',
+  'board.form': 'Work order',
+  'board.status.label': 'Status',
+  'board.status.available': 'Work available',
+  'board.status.cooldown': 'Next job in {time}',
+  'board.status.no_scrap': 'Every bay is busy',
+  'board.status.busy': 'You already have a job',
+  'board.payout': 'Payout',
+  'board.rep.label': 'Standing',
+  'board.rep.level': 'Level {level}',
+  'board.rep.progress': 'Progress to the next level',
+  'board.rep.next': 'Next unlock: {unlock}',
+  'board.request': 'Take the job',
+  'board.requesting': 'Asking the shop…',
+  'board.accepted': 'Job taken. The car is marked on your map.',
+
+  'stamp.cooldown': 'Wait',
+  'stamp.no_scrap': 'Full',
+  'stamp.busy': 'Taken',
+  'stamp.active': 'In progress',
+  'stamp.completed': 'Completed',
+  'stamp.expired': 'Expired',
+  'stamp.cancelled': 'Cancelled',
+
+  'tracker.title': 'Job slip',
+  'tracker.stage.pickup': 'Pick up',
+  'tracker.stage.deliver': 'Deliver',
+  'tracker.stage.scrap': 'Strip',
+  'tracker.timeLeft': 'Time left',
+  'tracker.parts': 'Parts',
+  'tracker.removed': 'removed',
+  'tracker.remaining': 'still on the car',
+  'tracker.partner': 'Partner',
+
+  'buyer.title': 'Parts buyer',
+  'buyer.form': 'Sale receipt',
+  'buyer.col.part': 'Part',
+  'buyer.col.owned': 'Qty',
+  'buyer.col.price': 'Each',
+  'buyer.col.subtotal': 'Amount',
+  'buyer.col.action': 'Action',
+  'buyer.sellAll': 'Sell all',
+  'buyer.sellAllOf': 'Sell all {label}',
+  'buyer.selling': 'Selling…',
+  'buyer.total': 'You can earn',
+  'buyer.sold': 'Sold {count} × {label} for {total}',
+  'buyer.empty': 'No parts to sell. Strip a car first.',
+
+  'errors.generic': 'That did not go through. Try again.',
+  'errors.already_working': 'You already have a job running.',
+  'errors.busy': 'You already have a job running.',
+  'errors.cooldown': 'You are still on cooldown.',
+  'errors.no_scrap': 'Every bay is busy. Come back later.',
+  'errors.no_item': 'You no longer have that part.',
+  'errors.too_far': 'Move closer to the counter.',
+  'errors.timeout': 'The shop did not answer. Try again.',
+};

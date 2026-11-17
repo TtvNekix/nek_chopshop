@@ -1,0 +1,43 @@
+/*
+ * Design tokens. The whole UI is one multi-part work order:
+ *   original (white)  -> job board
+ *   canary  (yellow)  -> job tracker, the workshop copy
+ *   pink              -> parts buyer, the receipt copy
+ * Printed parts of the form are black ink in a condensed industrial face;
+ * anything "filled in" by the shop is carbon-blue handwriting.
+ */
+:root {
+  /* paper */
+  --paper-original: #efe9da;
+  --paper-canary: #eadb9c;
+  --paper-pink: #e9cdc6;
+  --paper-edge: #b9ab8a;
+
+  /* ink */
+  --ink: #23211d;
+  --ink-soft: #5d574b;
+  --carbon: #2b3784;
+  --carbon-faint: rgba(43, 55, 132, 0.55);
+  --stamp: #b2271b;
+  --rule: rgba(73, 112, 150, 0.26);
+  --rule-strong: rgba(73, 112, 150, 0.6);
+
+  /* type */
+  --font-print: "Big Shoulders Text", "Arial Narrow", "Roboto Condensed", "Liberation Sans Narrow", sans-serif;
+  --font-hand: "Kalam", "Segoe Print", "Bradley Hand", "Comic Sans MS", cursive;
+  --font-num: "Courier New", Courier, "Nimbus Mono PS", "Liberation Mono", monospace;
+
+  /* rhythm: one ruled line = one line of handwriting */
+  --line: 1.75rem;
+  --gutter: 1.25rem;
+
+  /* placement of the in-job slip; servers can override this in their own CSS */
+  --tracker-top: 26vh;
+  --tracker-right: 1.5rem;
+
+  /* motion */
+  --ease-paper: cubic-bezier(0.2, 0.7, 0.25, 1);
+
+  /* 16px at 1080p, ~21px at 1440p, never below 14px */
+  font-size: clamp(14px, 1.48vh, 24px);
+}
