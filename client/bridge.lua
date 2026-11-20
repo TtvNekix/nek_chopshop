@@ -1,6 +1,6 @@
 Bridge = {}
 
-if Config.Framework == 'esx' then
+if Framework == 'esx' then
     ESX = exports.es_extended:getSharedObject()
 
     function Bridge.GetPlayerData()
@@ -15,7 +15,7 @@ if Config.Framework == 'esx' then
     RegisterNetEvent('esx:playerLoaded', function(xPlayer)
         TriggerEvent('chopshop:client:playerLoaded', xPlayer)
     end)
-elseif Config.Framework == 'qbcore' then
+elseif Framework == 'qbcore' then
     QBCore = exports['qb-core']:GetCoreObject()
 
     function Bridge.GetPlayerData()
@@ -30,10 +30,23 @@ elseif Config.Framework == 'qbcore' then
     RegisterNetEvent('QBCore:Client:OnPlayerLoaded', function()
         TriggerEvent('chopshop:client:playerLoaded', QBCore.Functions.GetPlayerData())
     end)
-else
-    print('ChopShop: Framework not supported: ' .. Config.Framework)
-end
+elseif Framework == 'qbox' then
+    function Bridge.GetPlayerData()
+        return exports.qbx_core:GetPlayerData()
+    end
 
+    function Bridge.GetIdentifier()
+        local data = exports.qbx_core:GetPlayerData()
+        return data and data.citizenid or nil
+    end
+
+    -- qbx_core keeps firing the QBCore compatibility event on character load
+    RegisterNetEvent('QBCore:Client:OnPlayerLoaded', function()
+        TriggerEvent('chopshop:client:playerLoaded', exports.qbx_core:GetPlayerData())
+    end)
+else
+    print('ChopShop: Framework not supported: ' .. tostring(Config.Framework))
+end
 
 function Bridge.Notify(data)
     Editable.Client.Notify(data)
@@ -41,4 +54,10 @@ end
 
 function Bridge.GetName(playerId)
     return GetPlayerName(playerId)
+end
+
+-- Asked to the server, so the client works with every inventory. UI only: the server checks the
+-- lockpick again when the scrap starts. Yields (call it from a thread / ox_target onSelect).
+function Bridge.HasLockpick()
+    return lib.callback.await('chopshop:server:hasLockpick', false) == true
 end

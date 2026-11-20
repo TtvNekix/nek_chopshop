@@ -5,6 +5,8 @@ local SELL_PED = {}
 CreateThread(function()
     while not Bridge.GetIdentifier() do Wait(10) end
 
+    TriggerServerEvent('chopshop:server:playerReady')
+
     if Config.Ped then
         if Config.Ped.Blip and Config.Ped.Blip.Enable then
             local blip = AddBlipForCoord(Config.Ped.Coords.x, Config.Ped.Coords.y, Config.Ped.Coords.z)
@@ -13,7 +15,7 @@ CreateThread(function()
             SetBlipScale(blip, Config.Ped.Blip.Scale)
             SetBlipAsShortRange(blip, true)
             BeginTextCommandSetBlipName("STRING")
-            AddTextComponentString(Config.Ped.Blip.Label)
+            AddTextComponentString(_L(Config.Ped.Blip.Label))
             EndTextCommandSetBlipName(blip)
         end
         local pedPoint = lib.points.new({
@@ -21,9 +23,9 @@ CreateThread(function()
             distance = 15
         })
 
+        -- Runs on every approach: the ped is re-created (new handle) each time it streams back in
         function pedPoint:onEnter()
             ObtainPedProperties()
-            pedPoint:remove()
         end
     end
 
@@ -35,7 +37,7 @@ CreateThread(function()
             SetBlipScale(blip, Config.SellPed.Blip.Scale)
             SetBlipAsShortRange(blip, true)
             BeginTextCommandSetBlipName("STRING")
-            AddTextComponentString(_L('blip_sell'))
+            AddTextComponentString(_L(Config.SellPed.Blip.Label))
             EndTextCommandSetBlipName(blip)
         end
         local sellPedPoint = lib.points.new({
@@ -45,11 +47,165 @@ CreateThread(function()
 
         function sellPedPoint:onEnter()
             ObtainSellPedProperties()
-            sellPedPoint:remove()
         end
     end
 end)
 
+
+-- NUI ----------------------------------------------------------------------------
+
+-- Real earnings per sellable item, priced by the server per stack quality:
+-- { [item] = { owned = n, total = money } }. Empty table when the server does not answer.
+local function sellQuote()
+    return lib.callback.await('chopshop:server:getSellQuote', false) or {}
+end
+
+-- ox_lib flow of the job ped (no NUI, or the NUI page is not ready): asks for a job directly.
+local function requestJobDirect()
+    if ClientUtils.IsOnCooldown() then return end
+
+    local status = ClientUtils.RequestJob()
+
+    if status == 'success' then
+        -- blips and tracker are set up by ClientUtils.RequestJob
+    elseif status == 'already_working' then
+        ClientInteract.Feedback('error', 'already_working')
+    elseif status == 'cooldown' then
+        ClientInteract.Feedback('error', 'cooldown_msg', 0)
+    elseif status == 'no_scrap' then
+        ClientInteract.Feedback('error', 'no_scrap_available')
+    elseif status == 'no_police' then
+        ClientInteract.Feedback('error', 'no_police')
+    else
+        ClientInteract.Feedback('error', 'error_starting')
+    end
+end
+
+-- ox_lib sell menu of the sell ped (no NUI, or the NUI page is not ready).
+local function openSellMenu()
+    local quote = sellQuote()
+    local options = {}
+    for _, itemData in ipairs(Config.SellPed.Items) do
+        local entry = quote[itemData.item]
+        table.insert(options, {
+            title = _L(itemData.label) .. " - $" .. itemData.price,
+            description = (entry and entry.owned > 0)
+                and _L('sell_item_quote', entry.owned, entry.total)
+                or _L('sell_item_desc', _L(itemData.label)),
+            icon = 'dollar',
+            onSelect = function()
+                local success, count, total = lib.callback.await('chopshop:server:sellItem', false,
+                    itemData.item)
+                if success then
+                    ClientInteract.Feedback('success', 'sold_item', count, _L(itemData.label), total)
+                else
+                    ClientInteract.Feedback('error', 'no_item')
+                end
+            end
+        })
+    end
+    lib.registerContext({
+        id = 'sell_chop_menu',
+        title = _L('sell_menu_title'),
+        options = options
+    })
+    lib.showContext('sell_chop_menu')
+end
+
+-- Opens the job board with the current cooldown / bay / busy state (epoch seconds -> ms).
+-- Returns false when the board could not be opened (the caller falls back to the ox_lib flow).
+function OpenJobBoard()
+    local info = lib.callback.await('chopshop:server:getBoardStatus', false)
+    -- nil: not next to the ped (or no character); nothing to show, and nothing to fall back to
+    if not info then return true end
+
+    local status = { kind = 'available' }
+    if info.busy then
+        status = { kind = 'busy' }
+    elseif (info.cooldownUntil or 0) > 0 then
+        status = { kind = 'cooldown', ['until'] = info.cooldownUntil * 1000 }
+    elseif info.policeOk == false then
+        status = { kind = 'no_police' }
+    elseif not info.scrapAvailable then
+        status = { kind = 'no_scrap' }
+    end
+
+    local payout = nil
+    if Config.Payment and Config.Payment.Enable then
+        payout = { min = Config.Payment.Min or 250, max = Config.Payment.Max or 400 }
+    end
+
+    -- reputation: { level, xp, xpMax, nextUnlock? } built by the server, nil when disabled
+    return Nui.open('job-board', { status = status, payout = payout, reputation = info.reputation })
+end
+
+-- Returns false when the buyer could not be opened (the caller falls back to the ox_lib menu).
+function OpenPartsBuyer()
+    local quote = sellQuote()
+    local items = {}
+    for _, itemData in ipairs(Config.SellPed.Items) do
+        local entry = quote[itemData.item]
+        items[#items + 1] = {
+            item = itemData.item,
+            label = _L(itemData.label),
+            price = itemData.price,
+            owned = entry and entry.owned or 0,
+            total = entry and entry.total or nil,
+        }
+    end
+    return Nui.open('parts-buyer', { items = items })
+end
+
+-- Errors are returned as codes: the board writes them on the open sheet (errors.<code>), no notification.
+Nui.on('requestJob', function()
+    if not Nui.isOpen('job-board') then return false, 'error' end
+
+    local status, plate = ClientUtils.RequestJob()
+    if status == 'success' then
+        Nui.close('job-board')
+        return true, { plate = plate }
+    end
+
+    if status == 'already_working' or status == 'cooldown' or status == 'no_scrap' or status == 'no_police' then
+        return false, status
+    end
+    return false, 'error'
+end)
+
+Nui.on('sellItem', function(data)
+    if not Nui.isOpen('parts-buyer') or type(data.item) ~= 'string' then return false, 'no_item' end
+
+    local itemData
+    for _, entry in ipairs(Config.SellPed.Items) do
+        if entry.item == data.item then itemData = entry break end
+    end
+    if not itemData then return false, 'no_item' end
+
+    local success, count, total = lib.callback.await('chopshop:server:sellItem', false, itemData.item)
+    if not success then return false, 'no_item' end
+
+    local remaining = sellQuote()[itemData.item]
+    return true, {
+        item = itemData.item,
+        label = _L(itemData.label),
+        count = count,
+        total = total,
+        owned = remaining and remaining.owned or 0,
+        remainingTotal = remaining and remaining.total or nil,
+    }
+end)
+
+if Config.UseNUI then
+    Nui.setLocale(ClientUtils.NuiLocale())
+end
+
+-- The player changed language from the ox_lib settings: reload our files and refresh the NUI.
+AddEventHandler('ox_lib:setLocale', function(key)
+    LoadChopLocale(key)
+    if Config.UseNUI then
+        Nui.setLocale(ClientUtils.NuiLocale())
+    end
+end)
 
 function ObtainPedProperties(data)
     local pedData = data or lib.callback.await('chopshop:server:addPedProperties', false)
@@ -74,31 +230,18 @@ function ObtainPedProperties(data)
             TaskStartScenarioInPlace(pedEntity, pedData.scenario, 0, true)
         end
 
-        exports.ox_target:addLocalEntity(pedEntity, {
+        -- By network id: ox_target re-attaches it whenever the ped streams back in
+        exports.ox_target:removeEntity(pedData.nwid, 'request_chop_job')
+        exports.ox_target:addEntity(pedData.nwid, {
             {
                 name = 'request_chop_job',
                 icon = Config.Ped.Target.options[1].icon,
-                label = _L('request_job'),
+                label = _L(Config.Ped.Target.options[1].label),
                 distance = 2.0,
                 onSelect = function()
-                    local scrapLocation, spawnPoint = ClientUtils.GetRandomScrapLocationAndSpawnPoint()
-                    if not scrapLocation and not spawnPoint then return end
-                    if scrapLocation == 'cd' then return end
-
-                    local vehicleModel = Config.Vehicles[math.random(1, #Config.Vehicles)]
-                    local status, netId = lib.callback.await('chopshop:server:requestJob', false, scrapLocation,
-                        spawnPoint, vehicleModel)
-
-                    if status == 'success' then
-                        ClientUtils.SetBlips({ spawnPoint = spawnPoint, scrapLocation = scrapLocation }, netId)
-                    elseif status == 'already_working' then
-                        Editable.Client.Notify({ type = 'error', description = _L('already_working') })
-                    elseif status == 'cooldown' then
-                        -- handled in GetRandomScrapLocationAndSpawnPoint usually but failsafe
-                        Editable.Client.Notify({ type = 'error', description = _L('cooldown_msg', 0) })
-                    else
-                        Editable.Client.Notify({ type = 'error', description = _L('error_starting') })
-                    end
+                    -- The NUI board needs the page ready; otherwise use the ox_lib flow
+                    if Config.UseNUI and Nui.waitReady(2000) and OpenJobBoard() then return end
+                    requestJobDirect()
                 end
             }
         })
@@ -128,39 +271,17 @@ function ObtainSellPedProperties(data)
             TaskStartScenarioInPlace(pedEntity, pedData.scenario, 0, true)
         end
 
-        exports.ox_target:addLocalEntity(pedEntity, {
+        exports.ox_target:removeEntity(pedData.nwid, 'sell_chop_items')
+        exports.ox_target:addEntity(pedData.nwid, {
             {
                 name = 'sell_chop_items',
                 icon = 'fas fa-dollar-sign',
                 label = _L('sell_parts'),
                 distance = 2.0,
                 onSelect = function()
-                    local options = {}
-                    for _, itemData in ipairs(Config.SellPed.Items) do
-                        table.insert(options, {
-                            title = itemData.label .. " - $" .. itemData.price,
-                            description = _L('sell_item_desc', itemData.label),
-                            icon = 'dollar',
-                            onSelect = function()
-                                local success, count, total = lib.callback.await('chopshop:server:sellItem', false,
-                                    itemData.item)
-                                if success then
-                                    Editable.Client.Notify({
-                                        type = 'success',
-                                        description = _L('sold_item', count, itemData.label, total)
-                                    })
-                                else
-                                    Editable.Client.Notify({ type = 'error', description = _L('no_item') })
-                                end
-                            end
-                        })
-                    end
-                    lib.registerContext({
-                        id = 'sell_chop_menu',
-                        title = _L('sell_menu_title'),
-                        options = options
-                    })
-                    lib.showContext('sell_chop_menu')
+                    -- The NUI buyer needs the page ready; otherwise use the ox_lib menu
+                    if Config.UseNUI and Nui.waitReady(2000) and OpenPartsBuyer() then return end
+                    openSellMenu()
                 end
             }
         })
@@ -181,18 +302,8 @@ end)
 
 AddEventHandler('onResourceStop', function(resource)
     if resource == GetCurrentResourceName() then
-        if PED['nwid'] then
-            local entity = NetworkGetEntityFromNetworkId(PED['nwid'])
-            if DoesEntityExist(entity) then
-                exports.ox_target:removeLocalEntity(entity)
-            end
-        end
-        if SELL_PED['nwid'] then
-            local entity = NetworkGetEntityFromNetworkId(SELL_PED['nwid'])
-            if DoesEntityExist(entity) then
-                exports.ox_target:removeLocalEntity(entity)
-            end
-        end
+        if PED['nwid'] then exports.ox_target:removeEntity(PED['nwid'], 'request_chop_job') end
+        if SELL_PED['nwid'] then exports.ox_target:removeEntity(SELL_PED['nwid'], 'sell_chop_items') end
     end
 end)
 
@@ -207,37 +318,32 @@ RegisterNetEvent('chopshop:client:brokePart', function(netid, part)
 
     if not DoesEntityExist(vehicleEntity) then return end
 
+    -- Engine and seats have no visual removal: only doors (bonnet, boot) and wheels are broken off
     if part.isDoor then
         SetVehicleDoorBroken(vehicleEntity, part.part, true)
     elseif part.isWheel then
         BreakOffVehicleWheel(vehicleEntity, part.part, true, false, true, false)
+        -- Only the network owner simulates the vehicle: make sure it is not frozen and wake its
+        -- physics, otherwise a parked (sleeping) body keeps floating where the wheel was
+        if NetworkGetEntityOwner(vehicleEntity) == PlayerId() then
+            FreezeEntityPosition(vehicleEntity, false)
+            ActivatePhysics(vehicleEntity)
+        end
     end
 
-    if ClientInteract and ClientInteract.IncreaseQuantity then
-        ClientInteract.IncreaseQuantity()
-    end
+    ClientInteract.MarkPartRemoved(netid, part.bone)
 end)
 
-RegisterNetEvent('chopshop:client:sendVehicleToScrap', function(vehicleData)
-    local vehicleEntity
-    local timeout = 0
-
-    repeat
-        vehicleEntity = NetworkGetEntityFromNetworkId(vehicleData.vehicle)
-        Wait(100)
-        timeout = timeout + 1
-    until (DoesEntityExist(vehicleEntity) and vehicleEntity ~= 0) or timeout >= 50
-
-    if not DoesEntityExist(vehicleEntity) or vehicleEntity == 0 then
-        return
-    end
-
-    Wait(1000)
-    ClientInteract.StartVehicleScrap(vehicleEntity, false)
+RegisterNetEvent('chopshop:client:partnerInvite', function(data)
+    ClientInteract.OnPartnerInvite(data)
 end)
 
-RegisterNetEvent('chopshop:client:syncFinish', function()
-    ObtainPedProperties()
+RegisterNetEvent('chopshop:client:scrapStarted', function(netId)
+    ClientInteract.OnScrapStarted(netId)
+end)
+
+RegisterNetEvent('chopshop:client:jobFinished', function(netId, isOwner, reason)
+    ClientInteract.OnJobFinished(netId, isOwner, reason)
 end)
 
 RegisterNetEvent('chopshop:client:playerLoaded', function()
@@ -245,9 +351,8 @@ RegisterNetEvent('chopshop:client:playerLoaded', function()
 end)
 
 exports('GetJobStatus', function()
-    -- Example export
     return {
-        active = (quantity > 0),
+        active = ClientInteract.HasActiveJob(),
         pedCoords = Config.Ped.Coords
     }
 end)

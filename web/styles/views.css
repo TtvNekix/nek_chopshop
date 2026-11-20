@@ -1,0 +1,458 @@
+/* Per-view layout. Paper, fields, stamp and buttons are in ticket.css. */
+
+/* ---- job board -------------------------------------------------------- */
+
+chop-job-board chop-ticket {
+  width: 31rem;
+}
+
+chop-job-board .ticket__stamp {
+  top: 5.6rem;
+  right: 1.1rem;
+}
+
+.board__rep {
+  margin-top: 1.1rem;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.gauge {
+  display: grid;
+  grid-template-columns: 7.5rem auto 1fr;
+  align-items: center;
+}
+
+.gauge__cells {
+  grid-column: 2;
+  display: inline-flex;
+  gap: 0.22rem;
+}
+
+.gauge__cells i {
+  width: 1.05rem;
+  height: 0.8rem;
+  border: 1.5px solid var(--ink);
+}
+
+/* filled cells are hatched by hand in carbon pen */
+.gauge__cells i.is-filled {
+  background: repeating-linear-gradient(-55deg, var(--carbon) 0 2px, transparent 2px 4.5px);
+}
+
+.gauge__count {
+  grid-column: 3;
+  justify-self: end;
+  font-size: 1rem;
+  color: var(--carbon);
+}
+
+.board__next {
+  padding-left: 7.5rem;
+  font-size: 1rem;
+  color: var(--ink-soft);
+}
+
+/* ---- job tracker (canary slip) ---------------------------------------- */
+
+chop-job-tracker chop-ticket {
+  width: 18.5rem;
+}
+
+chop-job-tracker .ticket__body {
+  padding: 0.85rem 1rem 1.2rem;
+}
+
+/* Slides in from beyond the right edge, overshoots a touch and settles; leaves the same way.
+   The loose note uses the same motion. */
+chop-job-tracker[data-enter] chop-ticket,
+chop-note[data-enter] chop-ticket {
+  animation: slip-in 620ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+chop-job-tracker[data-leave] chop-ticket,
+chop-note[data-leave] chop-ticket {
+  animation: slip-out 420ms cubic-bezier(0.55, 0, 0.75, 0.2) both;
+}
+
+@keyframes slip-in {
+  0% {
+    opacity: 0;
+    transform: translateX(calc(100% + var(--tracker-right) + 3rem)) rotate(calc(var(--tilt) + 5deg));
+  }
+  55% {
+    opacity: 1;
+    transform: translateX(-0.6rem) rotate(calc(var(--tilt) - 1.2deg));
+  }
+  78% {
+    transform: translateX(0.2rem) rotate(calc(var(--tilt) + 0.4deg));
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) rotate(var(--tilt));
+  }
+}
+
+@keyframes slip-out {
+  0% {
+    opacity: 1;
+    transform: translateX(0) rotate(var(--tilt));
+  }
+  25% {
+    transform: translateX(-0.5rem) rotate(calc(var(--tilt) - 1deg));
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(calc(100% + var(--tracker-right) + 3rem)) rotate(calc(var(--tilt) + 6deg));
+  }
+}
+
+.slip__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding-bottom: 0.3rem;
+  border-bottom: 2px solid var(--ink);
+}
+
+.slip__vehicle {
+  font-family: var(--font-hand);
+  font-size: 1.45rem;
+  line-height: 1.2;
+  color: var(--carbon);
+  text-shadow: 0 0 0.6px var(--carbon-faint);
+  overflow-wrap: anywhere;
+}
+
+.plate {
+  flex: none;
+  padding: 0.05em 0.4em;
+  font-size: 0.95rem;
+  letter-spacing: 0.08em;
+  border: 2px solid var(--ink);
+  background: #f4efe0;
+}
+
+.stages {
+  display: grid;
+  grid-template-columns: repeat(3, auto);
+  justify-content: space-between;
+  margin: 0.6rem 0 0.4rem;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+.stages__step {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.stages__no {
+  display: inline-grid;
+  place-items: center;
+  width: 1.3rem;
+  height: 1.3rem;
+  font-size: 0.8rem;
+  border: 1.5px solid currentColor;
+  border-radius: 50%;
+}
+
+.stages__step[data-state="current"] {
+  color: var(--ink);
+}
+
+.stages__step[data-state="current"] .stages__no {
+  background: var(--ink);
+  color: var(--paper);
+  border-color: var(--ink);
+}
+
+.stages__step[data-state="done"] {
+  text-decoration: line-through 2px var(--carbon);
+}
+
+.slip__timer {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  min-height: var(--line);
+}
+
+.timer {
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.timer[data-urgent] {
+  color: var(--stamp);
+}
+
+.checklist {
+  margin-top: 0.35rem;
+}
+
+.checklist__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  color: var(--ink-soft);
+}
+
+.checklist__head .num {
+  font-size: 0.95rem;
+  color: var(--carbon);
+}
+
+.checklist__item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: var(--line);
+  font-size: 1.05rem;
+}
+
+.checkbox {
+  position: relative;
+  flex: none;
+  width: 0.95rem;
+  height: 0.95rem;
+  border: 1.5px solid var(--ink);
+}
+
+.checklist__item[data-removed="true"] .checkbox::after {
+  content: "";
+  position: absolute;
+  left: 0.22rem;
+  top: -0.3rem;
+  width: 0.42rem;
+  height: 0.95rem;
+  border-right: 0.2rem solid var(--carbon);
+  border-bottom: 0.2rem solid var(--carbon);
+  transform: rotate(38deg);
+}
+
+.checklist__item[data-removed="true"] .checklist__label {
+  color: var(--ink-soft);
+  text-decoration: line-through 2px var(--carbon);
+}
+
+chop-job-tracker .field {
+  grid-template-columns: auto 1fr;
+  column-gap: 0.6rem;
+  margin-top: 0.35rem;
+}
+
+/* on the slip the stamp gets its own corner instead of covering the timer */
+chop-job-tracker .ticket__stamp {
+  position: relative;
+  display: block;
+  width: fit-content;
+  margin: 0.7rem 0.3rem 0 auto;
+  font-size: 1.25rem;
+}
+
+/* while the job runs the stamp stays light so the checklist remains readable */
+chop-job-tracker .ticket__stamp[data-status="active"] {
+  opacity: 0.55;
+}
+
+/* notes: the last few job messages, written in by hand under the checklist */
+.log {
+  margin-top: 0.5rem;
+  padding-top: 0.3rem;
+  border-top: 1px dashed var(--rule-strong);
+}
+
+.log__line {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 0.5rem;
+  align-items: baseline;
+  padding: 0.05rem 0.2rem;
+  font-family: var(--font-hand);
+  font-size: 1rem;
+  line-height: 1.35;
+  color: var(--carbon);
+  text-shadow: 0 0 0.6px var(--carbon-faint);
+}
+
+.log__time {
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+  text-shadow: none;
+}
+
+.log__text {
+  overflow-wrap: anywhere;
+}
+
+.log__line[data-tone="error"] {
+  color: var(--stamp);
+  text-shadow: 0 0 0.6px rgba(178, 39, 27, 0.5);
+}
+
+/* the newest line is written in left to right, then a pencil mark behind it fades out */
+.log__line[data-fresh] {
+  animation:
+    log-write 520ms steps(14, end) both,
+    log-mark 1800ms ease-out 520ms both;
+}
+
+@keyframes log-write {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+@keyframes log-mark {
+  from {
+    background: rgba(43, 55, 132, 0.14);
+  }
+  to {
+    background: transparent;
+  }
+}
+
+/* ---- loose note (scrap torn off a white pad) -------------------------- */
+
+chop-note chop-ticket {
+  --tilt: -1.6deg;
+  width: 15rem;
+}
+
+chop-note chop-ticket::before,
+chop-note chop-ticket::after {
+  content: none;
+}
+
+/* torn along the bottom instead of perforated */
+chop-note .note__paper {
+  padding: 0.6rem 0.9rem 1.3rem;
+  -webkit-mask: none;
+  mask: none;
+  clip-path: polygon(
+    0 0, 100% 0, 100% 88%,
+    95% 93%, 89% 88%, 83% 95%, 76% 90%, 70% 97%, 63% 91%, 57% 96%, 50% 89%,
+    44% 95%, 37% 90%, 31% 98%, 24% 91%, 18% 96%, 11% 89%, 5% 94%, 0 90%
+  );
+}
+
+.note__head {
+  font-size: 1rem;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--stamp);
+}
+
+.note__text {
+  margin-top: 0.2rem;
+  font-family: var(--font-hand);
+  font-size: 1.2rem;
+  line-height: 1.35;
+  color: var(--carbon);
+  text-shadow: 0 0 0.6px var(--carbon-faint);
+  overflow-wrap: anywhere;
+}
+
+/* ---- partner invite (white work order) -------------------------------- */
+
+chop-partner-invite chop-ticket {
+  width: 28rem;
+}
+
+.invite__text {
+  font-family: var(--font-hand);
+  font-size: 1.35rem;
+  line-height: var(--line);
+  color: var(--carbon);
+  text-shadow: 0 0 0.6px var(--carbon-faint);
+  transform: rotate(-0.6deg);
+  transform-origin: left center;
+}
+
+/* ---- parts buyer (pink receipt) --------------------------------------- */
+
+chop-parts-buyer chop-ticket {
+  width: 40rem;
+}
+
+.ledger {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 1.1rem;
+}
+
+.ledger thead th {
+  padding: 0 0.4rem 0.25rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--ink-soft);
+  text-align: left;
+  border-bottom: 2px solid var(--ink);
+}
+
+.ledger td,
+.ledger tbody th {
+  height: var(--line);
+  padding: 0.15rem 0.4rem;
+  border-bottom: 1px solid var(--rule-strong);
+}
+
+.ledger .is-num {
+  text-align: right;
+}
+
+.ledger__part {
+  font-weight: 700;
+  text-align: left;
+}
+
+.ledger tbody td.num:not(:nth-child(3)) {
+  color: var(--carbon);
+}
+
+.ledger__action {
+  width: 1%;
+  text-align: right;
+}
+
+.ledger tbody tr[data-empty="true"] > :not(.ledger__action) {
+  opacity: 0.5;
+}
+
+.ledger tfoot th {
+  padding: 0.5rem 0.4rem 0;
+  text-align: right;
+  font-size: 1.05rem;
+  font-weight: 800;
+  border-top: 4px double var(--ink);
+}
+
+.ledger tfoot td {
+  padding: 0.5rem 0.4rem 0;
+  border-top: 4px double var(--ink);
+}
+
+.ledger__total {
+  font-size: 1.5rem;
+  color: var(--carbon);
+}
+
+.ledger__empty {
+  font-family: var(--font-hand);
+  font-size: 1.25rem;
+  line-height: var(--line);
+  color: var(--carbon);
+}
+
+chop-parts-buyer .ticket__stub {
+  justify-content: flex-end;
+}
