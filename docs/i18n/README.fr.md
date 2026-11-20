@@ -422,4 +422,4 @@ Sauvegardez votre `shared/config.lua` et les fichiers de `editable/` avant de re
 
 ## Licence
 
-Voir [LICENSE](../../LICENSE).
+Propriétaire, code source visible. Tu peux l'utiliser sur tes serveurs, le modifier et forker le dépôt ; tu ne peux pas le vendre, le republier ni le redistribuer en dehors d'un fork. Conditions complètes (en anglais) dans [LICENSE](../../LICENSE).

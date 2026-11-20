@@ -422,4 +422,4 @@ Sichere deine `shared/config.lua` und die Dateien in `editable/`, bevor du die R
 
 ## Lizenz
 
-Siehe [LICENSE](../../LICENSE).
+Proprietär, Quellcode einsehbar. Du darfst es auf deinen Servern nutzen, ändern und das Repository forken; Verkauf, erneutes Hochladen oder Weitergabe außerhalb eines Forks sind nicht erlaubt. Vollständige Bedingungen (auf Englisch) in [LICENSE](../../LICENSE).

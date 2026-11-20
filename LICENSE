@@ -1,21 +1,48 @@
-MIT License
+nek_chopshop License (proprietary, source-available)
 
-Copyright (c) 2026 Juan
+Copyright (c) 2026 Juan (TtvNekix). All rights reserved.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+This license covers the nek_chopshop resource: its source code, interface,
+locale files, documentation and images ("the Software"). The Software is not
+open source. It is licensed, not sold.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+1. Use
+   You may use the Software on FiveM servers that you own or operate, as long
+   as you obtained it from the author's official channels (the official Tebex
+   store, the official GitHub repository or another channel the author names).
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+2. Modifications and forks
+   You may modify the Software, adapt it to your server and fork the official
+   repository, including public forks on GitHub, to keep your changes,
+   contribute fixes or send pull requests to the author.
+
+3. What you may not do
+   a. Sell, rent, sublicense or otherwise charge for the Software, a modified
+      version of it, or a fork of it, alone or bundled with other work.
+   b. Redistribute the Software or a modified version of it outside a fork of
+      the official repository, including re-uploads to other stores, file
+      hosts, Discord servers or "leak" sites.
+   c. Present the Software, or a modified version of it, as your own work.
+   d. Remove or bypass any escrow or protection applied by the Cfx.re asset
+      system to parts of the Software.
+
+4. Credits
+   Keep this license file and the author's credits in every copy and fork.
+   Forks must state clearly that they are modified versions of nek_chopshop.
+
+5. Contributions
+   If you send changes to the author (for example through a pull request), you
+   allow the author to use, modify and distribute them as part of the Software
+   without compensation.
+
+6. Termination
+   Your rights under this license end automatically if you break any of its
+   terms. On termination you must stop using the Software and delete your
+   copies and forks.
+
+7. No warranty
+   The Software is provided "as is", without warranty of any kind, express or
+   implied. The author is not liable for any claim, damage or other liability
+   arising from the use of the Software.
+
+For permissions not covered here, contact the author.

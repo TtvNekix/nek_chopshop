@@ -422,4 +422,4 @@ Faça backup do seu `shared/config.lua` e dos arquivos de `editable/` antes de s
 
 ## Licença
 
-Veja [LICENSE](../../LICENSE).
+Proprietária, com código visível. Você pode usá-lo nos seus servidores, modificá-lo e fazer forks do repositório; não pode vendê-lo, reenviá-lo nem redistribuí-lo fora de um fork. Termos completos (em inglês) em [LICENSE](../../LICENSE).

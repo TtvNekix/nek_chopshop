@@ -422,4 +422,4 @@ Back up your `shared/config.lua` and `editable/` files before replacing the reso
 
 ## License
 
-See [LICENSE](LICENSE).
+Proprietary, source-available. You may use it on your own servers, modify it and fork the repository; you may not sell, re-upload or redistribute it outside a fork. Full terms in [LICENSE](LICENSE).

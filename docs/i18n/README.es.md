@@ -422,4 +422,4 @@ Haz una copia de seguridad de tu `shared/config.lua` y de los archivos de `edita
 
 ## Licencia
 
-Consulta [LICENSE](../../LICENSE).
+Propietaria, con código visible. Puedes usarlo en tus servidores, modificarlo y hacer forks del repositorio; no puedes venderlo, resubirlo ni redistribuirlo fuera de un fork. Condiciones completas (en inglés) en [LICENSE](../../LICENSE).
