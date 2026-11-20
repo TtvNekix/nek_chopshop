@@ -8,7 +8,7 @@ import { errorText, formatDuration, formatMoney } from '../core/i18n.js';
  * payload = {
  *   shopName?:   string,
  *   ticketNo?:   string,
- *   status:      { kind: 'available' | 'cooldown' | 'no_scrap' | 'busy', until?: epochMs },
+ *   status:      { kind: 'available' | 'cooldown' | 'no_police' | 'no_scrap' | 'busy', until?: epochMs },
  *   payout?:     { min: number, max: number },
  *   reputation?: { level: number, xp: number, xpMax: number, nextUnlock?: string },
  * }
@@ -123,9 +123,11 @@ export class JobBoard extends ViewElement {
     if (action !== 'request' || this.slice.ui.pending) return;
 
     const { t } = this.ctx;
+    // Every `open` bumps seq; a reply that outlives this opening must not touch a reopened board.
+    const openedSeq = this.slice.seq;
     this.setUi({ pending: true, result: null });
     const reply = await this.deps.bridge.post('requestJob', {});
-    if (!this.slice.open) return;
+    if (!this.slice.open || this.slice.seq !== openedSeq) return;
 
     this.setUi({
       pending: false,

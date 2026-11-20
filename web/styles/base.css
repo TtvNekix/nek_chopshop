@@ -68,7 +68,7 @@ kbd {
   vertical-align: 0.1em;
 }
 
-/* Layout: menus share the centre, the tracker hangs on the right edge. */
+/* Layout: menus share the centre, the tracker hangs on the right edge and the loose note sits just above it. */
 .stage {
   position: fixed;
   inset: 0;
@@ -82,9 +82,18 @@ kbd {
   pointer-events: auto;
 }
 
-.stage > chop-job-tracker {
+.stage > chop-job-tracker[data-view] {
   position: fixed;
   top: var(--tracker-top);
+  right: var(--tracker-right);
+  pointer-events: none;
+}
+
+/* Its bottom edge stays above the tracker's top edge, so both can be on screen without overlapping.
+   [data-view] here and on the tracker beats `.stage > [data-view]`, so both stay click-through. */
+.stage > chop-note[data-view] {
+  position: fixed;
+  bottom: calc(100% - var(--tracker-top) + 1rem);
   right: var(--tracker-right);
   pointer-events: none;
 }

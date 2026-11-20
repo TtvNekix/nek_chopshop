@@ -23,6 +23,8 @@ export class ViewElement extends HTMLElement {
   static view = '';
   static focusable = true;
   static ticking = false;
+  /** Views with an exit motion in CSS (`[data-leave]`) stay visible until it finishes. */
+  static animatedExit = false;
   static #deps = null;
 
   static provide(deps) {
@@ -109,6 +111,7 @@ export class ViewElement extends HTMLElement {
 
   #unsubscribe = null;
   #stopTick = null;
+  #leave = null;
 
   #handleClick = (event) => {
     const target = event.target.closest('[data-action]');
@@ -139,6 +142,7 @@ export class ViewElement extends HTMLElement {
   }
 
   #show() {
+    this.#cancelLeave();
     this.hidden = false;
     // Restart the entry animation on every open, including re-opens.
     this.removeAttribute('data-enter');
@@ -152,9 +156,38 @@ export class ViewElement extends HTMLElement {
   }
 
   #hide() {
-    this.hidden = true;
     this.#stopTicking();
+    if (!this.constructor.animatedExit || this.hidden) {
+      this.#finishHide();
+      return;
+    }
+    // Play the exit motion (`[data-leave]` in CSS), then hide. A re-open while leaving cancels it;
+    // the timeout covers a missing animationend (e.g. the view was never painted).
+    this.#cancelLeave();
+    this.removeAttribute('data-enter');
+    this.setAttribute('data-leave', '');
+    const done = (event) => {
+      if (event && event.target.localName !== 'chop-ticket') return;
+      this.#cancelLeave();
+      this.#finishHide();
+    };
+    this.addEventListener('animationend', done);
+    const timer = setTimeout(done, 900);
+    this.#leave = () => {
+      this.removeEventListener('animationend', done);
+      clearTimeout(timer);
+      this.removeAttribute('data-leave');
+    };
+  }
+
+  #finishHide() {
+    this.hidden = true;
     this.replaceChildren();
+  }
+
+  #cancelLeave() {
+    this.#leave?.();
+    this.#leave = null;
   }
 
   #startTicking() {

@@ -16,7 +16,7 @@
  * }
  */
 
-export const VIEWS = Object.freeze(['job-board', 'job-tracker', 'parts-buyer']);
+export const VIEWS = Object.freeze(['job-board', 'job-tracker', 'parts-buyer', 'note', 'partner-invite']);
 
 const emptyView = Object.freeze({ open: false, seq: 0, payload: {}, ui: {} });
 

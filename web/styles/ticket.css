@@ -282,13 +282,15 @@ chop-stamp[data-thunk] {
 }
 
 .btn--ink:hover:not(:disabled),
-.btn--line:hover:not(:disabled) {
+.btn--line:hover:not(:disabled),
+.btn--outline:hover:not(:disabled) {
   box-shadow: 0.2rem 0.2rem 0 var(--ink-soft);
   transform: translate(-0.1rem, -0.1rem);
 }
 
 .btn--ink:active:not(:disabled),
-.btn--line:active:not(:disabled) {
+.btn--line:active:not(:disabled),
+.btn--outline:active:not(:disabled) {
   box-shadow: none;
   transform: none;
 }

@@ -12,6 +12,7 @@ export default {
   'board.status.label': 'Status',
   'board.status.available': 'Work available',
   'board.status.cooldown': 'Next job in {time}',
+  'board.status.no_police': 'Not enough police on duty',
   'board.status.no_scrap': 'Every bay is busy',
   'board.status.busy': 'You already have a job',
   'board.payout': 'Payout',
@@ -24,6 +25,7 @@ export default {
   'board.accepted': 'Job taken. The car is marked on your map.',
 
   'stamp.cooldown': 'Wait',
+  'stamp.no_police': 'Too quiet',
   'stamp.no_scrap': 'Full',
   'stamp.busy': 'Taken',
   'stamp.active': 'In progress',
@@ -40,6 +42,15 @@ export default {
   'tracker.removed': 'removed',
   'tracker.remaining': 'still on the car',
   'tracker.partner': 'Partner',
+  'tracker.log': 'Notes',
+
+  'note.inform': 'Notice',
+  'note.success': 'Noted',
+  'note.error': 'Error',
+
+  'invite.title': 'Helper',
+  'invite.accept': 'Accept',
+  'invite.decline': 'Decline',
 
   'buyer.title': 'Parts buyer',
   'buyer.form': 'Sale receipt',
@@ -59,6 +70,7 @@ export default {
   'errors.already_working': 'You already have a job running.',
   'errors.busy': 'You already have a job running.',
   'errors.cooldown': 'You are still on cooldown.',
+  'errors.no_police': 'Not enough police on duty. Come back later.',
   'errors.no_scrap': 'Every bay is busy. Come back later.',
   'errors.no_item': 'You no longer have that part.',
   'errors.too_far': 'Move closer to the counter.',

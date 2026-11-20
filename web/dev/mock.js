@@ -3,7 +3,8 @@
  * load from file://), e.g. `npx serve web` or `python -m http.server -d web`.
  *
  * - Registers the English fallback dictionary.
- * - Answers NUI callbacks (`close`, `requestJob`, `sellItem`, `ready`) locally.
+ * - Answers NUI callbacks (`close`, `requestJob`, `sellItem`, `answerInvite`, `ready`) locally.
+ * - Plays the Lua side of the loose note (auto-close) and of the tracker notes (last 5 kept).
  * - Adds a toolbar whose buttons emit the same envelopes Lua would send,
  *   through `bridge.emit`, so every scenario exercises the real message path.
  *
@@ -15,6 +16,13 @@ import english from './locale-en.js';
 const minutes = (n) => n * 60_000;
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+/** Same values as client/interact.lua (LOG_SIZE, NOTE_MS). */
+const LOG_SIZE = 5;
+const NOTE_MS = 5000;
+let logSeq = 0;
+let mockLog = []; // kept here like Lua does: emits are async, so the store may lag behind
+let noteTimer = null;
+
 const SAMPLE_PARTS = [
   { id: 'door_dside_f', label: 'Front left door', removed: false },
   { id: 'door_pside_f', label: 'Front right door', removed: false },
@@ -24,7 +32,7 @@ const SAMPLE_PARTS = [
 ];
 
 const SAMPLE_ITEMS = [
-  { item: 'vehicle_door', label: 'Door', price: 45, owned: 4 },
+  { item: 'vehicle_door', label: 'Door', price: 45, owned: 4, total: 270 },
   { item: 'vehicle_hood', label: 'Hood', price: 55, owned: 1 },
   { item: 'veh_wheels', label: 'Wheel', price: 30, owned: 0 },
   { item: 'car-battery', label: 'Battery', price: 60, owned: 2 },
@@ -44,13 +52,25 @@ const SAMPLE_ES = {
       request: 'Aceptar encargo',
     },
     stamp: { active: 'En curso', completed: 'Completado', expired: 'Caducado', cooldown: 'Espera' },
-    tracker: { stage: { pickup: 'Recoger', deliver: 'Entregar', scrap: 'Desguazar' }, timeLeft: 'Tiempo', parts: 'Piezas' },
+    tracker: { stage: { pickup: 'Recoger', deliver: 'Entregar', scrap: 'Desguazar' }, timeLeft: 'Tiempo', parts: 'Piezas', log: 'Anotaciones' },
+    note: { inform: 'Aviso', success: 'Anotado', error: 'Error' },
+    invite: { title: 'Ayudante', accept: 'Aceptar', decline: 'Rechazar' },
   },
 };
 
 function scenarios(bridge, store) {
   const emit = (message) => bridge.emit(message);
   const tracker = () => store.get().views['job-tracker'].payload;
+  const logLine = (tone, text) => {
+    logSeq += 1;
+    mockLog = [...mockLog, { id: logSeq, at: Date.now(), tone, text }].slice(-LOG_SIZE);
+    emit({ type: 'update', view: 'job-tracker', payload: { log: mockLog } });
+  };
+  const note = (tone, text) => {
+    clearTimeout(noteTimer);
+    emit({ type: 'open', view: 'note', payload: { tone, text } });
+    noteTimer = setTimeout(() => emit({ type: 'close', view: 'note' }), NOTE_MS);
+  };
 
   return [
     ['Board: available', () =>
@@ -68,7 +88,8 @@ function scenarios(bridge, store) {
       emit({ type: 'open', view: 'job-board', payload: { status: { kind: 'cooldown', until: Date.now() + 95_000 } } })],
     ['Board: bays full', () =>
       emit({ type: 'open', view: 'job-board', payload: { status: { kind: 'no_scrap' } } })],
-    ['Tracker: start', () =>
+    ['Tracker: start', () => {
+      mockLog = [];
       emit({
         type: 'open',
         view: 'job-tracker',
@@ -79,7 +100,8 @@ function scenarios(bridge, store) {
           expiresAt: Date.now() + minutes(20),
           parts: SAMPLE_PARTS,
         },
-      })],
+      });
+    }],
     ['Tracker: next stage', () => {
       const order = ['pickup', 'deliver', 'scrap'];
       const next = order[Math.min(order.indexOf(tracker().stage) + 1, order.length - 1)];
@@ -95,6 +117,16 @@ function scenarios(bridge, store) {
       emit({ type: 'update', view: 'job-tracker', payload: { expiresAt: Date.now() + 70_000 } })],
     ['Tracker: completed', () =>
       emit({ type: 'update', view: 'job-tracker', payload: { status: 'completed' } })],
+    ['Tracker: log line', () => logLine('success', 'Vehicle unlocked. Take it.')],
+    ['Tracker: log error', () => logLine('error', 'You have no space left')],
+    ['Note: notice', () => note('inform', 'M. Reyes will start the scrap soon. Wait by the vehicle.')],
+    ['Note: error', () => note('error', 'You need a lockpick')],
+    ['Invite', () =>
+      emit({
+        type: 'open',
+        view: 'partner-invite',
+        payload: { from: 'M. Reyes', ticketNo: 'CHOP 412', text: 'M. Reyes asks for your help scrapping a vehicle.' },
+      })],
     ['Buyer', () => emit({ type: 'open', view: 'parts-buyer', payload: { items: SAMPLE_ITEMS } })],
     ['Close all', () => emit({ type: 'close' })],
     ['Locale: en', () => emit({ type: 'init', locale: { lang: 'en', currency: '$', strings: {} } })],
@@ -127,11 +159,19 @@ function installMocks(bridge, store) {
     return { ok: true, data: { plate: 'CHOP 413' } };
   });
 
+  bridge.mock('answerInvite', async ({ accept }) => {
+    await wait(250);
+    bridge.emit({ type: 'close', view: 'partner-invite' });
+    console.info(`[chopshop] dev: invite ${accept ? 'accepted' : 'declined'}`);
+    return { ok: true };
+  });
+
   bridge.mock('sellItem', async ({ item }) => {
     await wait(350);
     const row = (store.get().views['parts-buyer'].payload.items ?? []).find((entry) => entry.item === item);
     if (!row || row.owned <= 0) return { ok: false, error: 'no_item' };
-    return { ok: true, data: { item, label: row.label, count: row.owned, total: row.owned * row.price, owned: 0 } };
+    const total = Number.isFinite(row.total) ? row.total : row.owned * row.price;
+    return { ok: true, data: { item, label: row.label, count: row.owned, total, owned: 0, remainingTotal: 0 } };
   });
 }
 

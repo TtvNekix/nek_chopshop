@@ -63,14 +63,47 @@ chop-job-tracker .ticket__body {
   padding: 0.85rem 1rem 1.2rem;
 }
 
-chop-job-tracker[data-enter] chop-ticket {
-  animation-name: slip-in;
+/* Slides in from beyond the right edge, overshoots a touch and settles; leaves the same way.
+   The loose note uses the same motion. */
+chop-job-tracker[data-enter] chop-ticket,
+chop-note[data-enter] chop-ticket {
+  animation: slip-in 620ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+chop-job-tracker[data-leave] chop-ticket,
+chop-note[data-leave] chop-ticket {
+  animation: slip-out 420ms cubic-bezier(0.55, 0, 0.75, 0.2) both;
 }
 
 @keyframes slip-in {
-  from {
+  0% {
     opacity: 0;
-    transform: translateX(2.5rem) rotate(calc(var(--tilt) + 2deg));
+    transform: translateX(calc(100% + var(--tracker-right) + 3rem)) rotate(calc(var(--tilt) + 5deg));
+  }
+  55% {
+    opacity: 1;
+    transform: translateX(-0.6rem) rotate(calc(var(--tilt) - 1.2deg));
+  }
+  78% {
+    transform: translateX(0.2rem) rotate(calc(var(--tilt) + 0.4deg));
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) rotate(var(--tilt));
+  }
+}
+
+@keyframes slip-out {
+  0% {
+    opacity: 1;
+    transform: translateX(0) rotate(var(--tilt));
+  }
+  25% {
+    transform: translateX(-0.5rem) rotate(calc(var(--tilt) - 1deg));
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(calc(100% + var(--tracker-right) + 3rem)) rotate(calc(var(--tilt) + 6deg));
   }
 }
 
@@ -224,6 +257,125 @@ chop-job-tracker .ticket__stamp {
 /* while the job runs the stamp stays light so the checklist remains readable */
 chop-job-tracker .ticket__stamp[data-status="active"] {
   opacity: 0.55;
+}
+
+/* notes: the last few job messages, written in by hand under the checklist */
+.log {
+  margin-top: 0.5rem;
+  padding-top: 0.3rem;
+  border-top: 1px dashed var(--rule-strong);
+}
+
+.log__line {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 0.5rem;
+  align-items: baseline;
+  padding: 0.05rem 0.2rem;
+  font-family: var(--font-hand);
+  font-size: 1rem;
+  line-height: 1.35;
+  color: var(--carbon);
+  text-shadow: 0 0 0.6px var(--carbon-faint);
+}
+
+.log__time {
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+  text-shadow: none;
+}
+
+.log__text {
+  overflow-wrap: anywhere;
+}
+
+.log__line[data-tone="error"] {
+  color: var(--stamp);
+  text-shadow: 0 0 0.6px rgba(178, 39, 27, 0.5);
+}
+
+/* the newest line is written in left to right, then a pencil mark behind it fades out */
+.log__line[data-fresh] {
+  animation:
+    log-write 520ms steps(14, end) both,
+    log-mark 1800ms ease-out 520ms both;
+}
+
+@keyframes log-write {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+@keyframes log-mark {
+  from {
+    background: rgba(43, 55, 132, 0.14);
+  }
+  to {
+    background: transparent;
+  }
+}
+
+/* ---- loose note (scrap torn off a white pad) -------------------------- */
+
+chop-note chop-ticket {
+  --tilt: -1.6deg;
+  width: 15rem;
+}
+
+chop-note chop-ticket::before,
+chop-note chop-ticket::after {
+  content: none;
+}
+
+/* torn along the bottom instead of perforated */
+chop-note .note__paper {
+  padding: 0.6rem 0.9rem 1.3rem;
+  -webkit-mask: none;
+  mask: none;
+  clip-path: polygon(
+    0 0, 100% 0, 100% 88%,
+    95% 93%, 89% 88%, 83% 95%, 76% 90%, 70% 97%, 63% 91%, 57% 96%, 50% 89%,
+    44% 95%, 37% 90%, 31% 98%, 24% 91%, 18% 96%, 11% 89%, 5% 94%, 0 90%
+  );
+}
+
+.note__head {
+  font-size: 1rem;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--stamp);
+}
+
+.note__text {
+  margin-top: 0.2rem;
+  font-family: var(--font-hand);
+  font-size: 1.2rem;
+  line-height: 1.35;
+  color: var(--carbon);
+  text-shadow: 0 0 0.6px var(--carbon-faint);
+  overflow-wrap: anywhere;
+}
+
+/* ---- partner invite (white work order) -------------------------------- */
+
+chop-partner-invite chop-ticket {
+  width: 28rem;
+}
+
+.invite__text {
+  font-family: var(--font-hand);
+  font-size: 1.35rem;
+  line-height: var(--line);
+  color: var(--carbon);
+  text-shadow: 0 0 0.6px var(--carbon-faint);
+  transform: rotate(-0.6deg);
+  transform-origin: left center;
 }
 
 /* ---- parts buyer (pink receipt) --------------------------------------- */

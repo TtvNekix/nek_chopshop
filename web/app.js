@@ -29,7 +29,7 @@ async function boot() {
 
   document.addEventListener('keydown', (event) => {
     if (event.key !== 'Escape') return;
-    // Only menus close on Escape; the tracker has no focus and stays put.
+    // Only menus close on Escape (the invite counts it as a decline); the tracker and the note stay put.
     const menu = [...stage.children].find((el) => !el.hidden && el.constructor.focusable);
     menu?.requestClose();
   });
