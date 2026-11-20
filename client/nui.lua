@@ -12,10 +12,8 @@
         'ready' and 'close' are handled here and reserved.
 
     Focus: views that take focus (menus) call SetNuiFocus while open; the
-    tracker never does. Messages sent before the page reports 'ready' are
+    tracker and the loose note never do. Messages sent before the page reports 'ready' are
     queued and flushed in order, after the current locale.
-
-    Phase 1: nothing in the game flow calls this module yet.
 ]]
 
 Nui = Nui or {}
@@ -28,6 +26,8 @@ local VIEWS = {
     ['job-board']   = { focus = true,  allowFocus = true },
     ['job-tracker'] = { focus = false, allowFocus = false },
     ['parts-buyer'] = { focus = true,  allowFocus = true },
+    ['note']           = { focus = false, allowFocus = false },
+    ['partner-invite'] = { focus = true,  allowFocus = true },
 }
 
 local RESERVED_ACTIONS = { ready = true, close = true }
@@ -112,7 +112,7 @@ function Nui.setLocale(locale)
 end
 
 ---Opens a view.
----@param view string 'job-board' | 'job-tracker' | 'parts-buyer'
+---@param view string 'job-board' | 'job-tracker' | 'parts-buyer' | 'note' | 'partner-invite'
 ---@param payload table|nil view data, see web/CONTRACT.md
 ---@param opts table|nil { focus?: boolean, onClose?: fun(view: string, reason: string) }
 function Nui.open(view, payload, opts)
@@ -123,6 +123,13 @@ function Nui.open(view, payload, opts)
     local focus = spec.focus
     if opts.focus ~= nil then focus = opts.focus == true end
     if not spec.allowFocus then focus = false end
+
+    -- Never take focus before the page can show the view and release it again (Escape / close):
+    -- callers wait with Nui.waitReady and fall back to the ox_lib menus when this returns false.
+    if focus and not isReady then
+        debug('refused to open', view, 'with focus: page not ready')
+        return false
+    end
 
     openViews[view] = { focus = focus, onClose = opts.onClose }
     send({ type = 'open', view = view, payload = type(payload) == 'table' and payload or {} })
@@ -168,6 +175,31 @@ end
 ---@return boolean
 function Nui.isOpen(view)
     return openViews[view] ~= nil
+end
+
+---True once the page reported 'ready'.
+---@return boolean
+function Nui.isReady()
+    return isReady
+end
+
+---Waits (yields) up to timeoutMs (default 2000) for the page to report 'ready'.
+---@param timeoutMs number|nil
+---@return boolean ready
+function Nui.waitReady(timeoutMs)
+    local deadline = GetGameTimer() + (tonumber(timeoutMs) or 2000)
+    while not isReady and GetGameTimer() < deadline do
+        Wait(50)
+    end
+    return isReady
+end
+
+---Closes every view and releases the NUI focus unconditionally (recovery when the page misbehaves).
+function Nui.reset()
+    Nui.close(nil, 'reset')
+    hasFocus = false
+    SetNuiFocus(false, false)
+    SetNuiFocusKeepInput(false)
 end
 
 ---Registers a NUI -> Lua action.
@@ -225,17 +257,26 @@ RegisterNUICallback('ready', function(_, cb)
     cb({ ok = true, data = { v = CONTRACT_VERSION } })
 end)
 
+-- A close from the page always ends with the focus released, even when the payload is broken:
+-- an unknown or missing view closes every view.
 RegisterNUICallback('close', function(data, cb)
     local view = type(data) == 'table' and data.view or nil
     if type(view) == 'string' and VIEWS[view] then
         if openViews[view] then
             Nui.close(view, 'nui')
         end
+        refreshFocus()
         cb({ ok = true })
         return
     end
+    Nui.reset()
     cb({ ok = false, error = 'bad_payload' })
 end)
+
+-- Manual recovery if the focus ever gets stuck (page error, broken view): /chopshopui
+RegisterCommand('chopshopui', function()
+    Nui.reset()
+end, false)
 
 AddEventHandler('onResourceStop', function(resource)
     if resource ~= GetCurrentResourceName() then return end

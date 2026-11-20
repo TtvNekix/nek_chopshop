@@ -1,11 +1,19 @@
 Config = {}
 
-Config.Version = '1.1'
+Config.Version = '2.0.0'
 
 -- Framework configuration
 -- type: string
 -- options: 'esx', 'qbcore', 'qbox' or 'auto' (detects qbx_core > es_extended > qb-core)
-Config.Framework = 'esx'
+Config.Framework = 'auto'
+
+-- Inventory system
+-- type: string
+-- options: 'auto', 'ox_inventory', 'qs-inventory', 'core_inventory', 'ps-inventory', 'qb-inventory' or
+-- 'custom' (fill Editable.Inventory in editable/server.lua).
+-- 'auto' detects ox_inventory > qs-inventory > core_inventory > ps-inventory > qb-inventory.
+-- A forced inventory that is not started falls back to auto-detection.
+Config.Inventory = 'auto'
 
 -- Items that allow lockpicking the job vehicle (any one of them is enough)
 -- type: table
@@ -37,7 +45,7 @@ Config.Ped = {
         options = {
             {
                 icon = 'fas fa-car',
-                label = 'Solicitar trabajo', -- Will be overwritten by Locale
+                label = 'request_job', -- locale key (locales/*.json); a literal text also works
             },
         },
         distance = 2.0,
@@ -50,7 +58,7 @@ Config.Ped = {
         Sprite = 227,
         Color = 5,
         Scale = 0.8,
-        Label = 'Chop Shop',
+        Label = 'blip_chopshop', -- locale key; a literal text also works
     }
 }
 
@@ -62,12 +70,28 @@ Config.SellPed = {
     Coords = vector4(-267.0674, -1920.6383, 27.7734, 100.0090), -- Example coords, adjust as needed or use existing nearby
     Scenario = 'WORLD_HUMAN_SMOKING',
 
+    -- label: locale key (locales/*.json) or a literal text
     Items = {
-        { item = 'vehicle_door',   price = 45, label = 'Puerta' },
-        { item = 'vehicle_hood',   price = 55, label = 'Capo' },
-        { item = 'veh_wheels',     price = 30, label = 'Rueda' },
-        { item = 'car-battery',    price = 60, label = 'Bateria' },
-        { item = 'veh_suspension', price = 70, label = 'Suspension' },
+        { item = 'vehicle_door',   price = 45, label = 'item_vehicle_door' },
+        { item = 'vehicle_hood',   price = 55, label = 'item_vehicle_hood' },
+        { item = 'veh_wheels',     price = 30, label = 'item_veh_wheels' },
+        { item = 'car-battery',    price = 60, label = 'item_car_battery' },
+        { item = 'veh_suspension', price = 70, label = 'item_veh_suspension' },
+        { item = 'vehicle_trunk',  price = 65, label = 'item_vehicle_trunk' },
+        { item = 'vehicle_engine', price = 120, label = 'item_vehicle_engine' },
+        { item = 'vehicle_seat',   price = 40, label = 'item_vehicle_seat' },
+        -- Loot-only items (Config.Tiers[].loot)
+        { item = 'scrap_metal',    price = 10, label = 'item_scrap_metal' },
+        { item = 'sport_wheel',    price = 90, label = 'item_sport_wheel' },
+        { item = 'turbo_kit',      price = 250, label = 'item_turbo_kit' },
+    },
+
+    -- Price multiplier by the item's `quality` metadata (set by the vehicle tier, see Config.Tiers).
+    -- Items without quality metadata, or with an unknown one, are paid as 'standard'.
+    QualityMultiplier = {
+        standard = 1.0,
+        premium  = 1.5,
+        exotic   = 2.5,
     },
 
     Blip = {
@@ -75,7 +99,7 @@ Config.SellPed = {
         Sprite = 500,
         Color = 46,
         Scale = 0.6,
-        Label = 'Venta de Piezas',
+        Label = 'blip_sell', -- locale key; a literal text also works
     }
 }
 
@@ -101,6 +125,7 @@ Config.Discord = {
         pay      = 15105570, -- Orange
         finished = 3447003,  -- Blue
         warn     = 16761858, -- Red
+        rep      = 10181046, -- Purple
     }
 }
 
@@ -111,6 +136,7 @@ Config.Logs = {
     EnablePay    = true,  -- Log when payment is made
     EnableFinish = true,  -- Log when job is finished
     EnableWarn   = true,  -- Log suspicious (possibly exploited) requests
+    EnableReputation = true, -- Log reputation level ups and AddReputation export calls
     Compact      = false, -- Use compact logging format
 }
 
@@ -127,65 +153,32 @@ Config.Payment = {
 -- Default: 1 hour
 Config.Cooldown = 60 * 60
 
-Config.Locales = {
-    request_job = 'Solicitar Trabajo',
-    job_started = 'Trabajo iniciado. Ve a por el vehículo.',
-    already_working = 'Ya tienes un trabajo activo',
-    cooldown_msg = 'Tienes que esperar %d minutos para volver a trabajar.',
-    error_starting = 'Error al iniciar el trabajo',
-    no_scrap_available = 'No hay desguaces libres ahora mismo. Vuelve más tarde.',
-    scrap_rejected = 'El vehículo no está en el desguace.',
-    job_expired = 'Se acabó el tiempo. El trabajo ha sido cancelado.',
-    partner_invited = 'Invitación enviada.',
-    invite_partner = 'Invitar Compañero',
-    partner_invite_title = 'Desguace',
-    partner_invite_desc = '%s te invita a desguazar un vehículo con él. ¿Aceptas?',
-    need_lockpick = 'Necesitas una ganzúa',
-    vehicle_unlocked = 'Vehículo desbloqueado. Llévalo.',
-    failed_lockpick = 'Fallaste al ganzuar. Vuelve a intentarlo.',
-    goto_scrapyard = 'Ve al desguace.',
-    parked_scrap = 'Has aparcado el vehículo. Desguázalo.',
-    start_scrap = 'Desguazar Vehículo',
-    share_menu_title = 'Desguace de Vehículo',
-    init_scrap = 'Iniciar Desguace',
-    init_scrap_desc = 'Inicia el proceso de desguace.',
-    designate_partner = 'Designar Compañero',
-    designate_partner_desc = 'Designa a un compañero.',
-    partner_assigned = 'Compañero asignado',
-    error_assigning = 'Error al asignar',
-    select_partner = 'Seleccionar Compañero',
-    no_space = 'No tienes espacio',
-    disassembling = 'Desguazando %s',
-    disassembled = 'Desguazado',
-    finished = 'Has terminado. El vehículo será destruido.',
+-- Use the custom NUI (job board, job tracker, parts buyer).
+-- false falls back to the ox_lib menus/notifications only.
+-- type: boolean
+Config.UseNUI = true
 
-    -- Targets
-    lockpick_vehicle = 'Ganzuar Vehículo',
-    remove_part = 'Quitar %s',
+-- Language
+-- Texts live in locales/<lang>.json and are loaded with ox_lib's locale module.
+-- The language is the ox_lib one: add `setr ox:locale "es"` to server.cfg.
+-- Missing keys fall back to English. See the "Languages" section of the README.
+-- Do not edit this block; to translate, copy locales/en.json to locales/<code>.json.
+ChopLocale = { lang = 'en' }
 
-    -- Blips
-    pickup_point = 'Punto de Recogida',
-    scrap_point = 'Desguace - %s',
+---Loads the locale files of this resource. Falls back to 'en' when there is no file for the language.
+---@param requested? string language code, defaults to the ox_lib language
+---@return string lang the language that was actually loaded
+function LoadChopLocale(requested)
+    local lang = requested or lib.getLocaleKey() or 'en'
+    if not LoadResourceFile(GetCurrentResourceName(), ('locales/%s.json'):format(lang)) then
+        lang = 'en'
+    end
+    lib.locale(lang)
+    ChopLocale.lang = lang
+    return lang
+end
 
-    -- Parts
-    door_lf = 'Puerta Delantera Izq.',
-    door_lr = 'Puerta Trasera Izq.',
-    door_rr = 'Puerta Trasera Der.',
-    door_rf = 'Puerta Delantera Der.',
-    hood = 'Capó',
-    wheel_lf = 'Rueda Delantera Izq.',
-    wheel_lr = 'Rueda Trasera Izq.',
-    wheel_rr = 'Rueda Trasera Der.',
-    wheel_rf = 'Rueda Delantera Der.',
-
-    -- Sell System
-    sell_parts = 'Vender Piezas',
-    sell_menu_title = 'Venta de Piezas',
-    sell_item_desc = 'Vender %s',
-    sold_item = 'Has vendido %dx %s por $%d',
-    no_item = 'No tienes esta pieza',
-    blip_sell = 'Venta de Piezas',
-}
+LoadChopLocale()
 
 Config.Coords = {
     Spawns = {
@@ -323,86 +316,147 @@ Config.Coords = {
     }
 }
 
-Config.Vehicles = {
-    'felon',
-    'feltzer2',
-    'ninef',
-    'previon',
-    'banshee',
-    'stafford',
-    'sultanrs',
-    'granger',
-    'primo2',
-    'sentinel',
-    'emperor',
-    'sandking',
-    'carbonizzare',
-    'weevil',
-    'cogcabrio',
-    'f620',
-    'windsor',
-    'deviant',
-    'dominator3',
-    'dukes',
-    'ellie',
-    'hustler',
-    'lurcher',
-    'moonbeam',
-    'nightshade',
-    'phoenix',
-    'sabregt',
-    'tulip',
-    'vigero',
-    'yosemite',
-    'caracara2',
-    'dubsta3',
-    'everon',
-    'kalahari',
-    'winky',
-    'landstalker',
-    'patriot',
-    'seminole2',
-    'asterope',
-    'glendale2',
-    'stanier',
-    'stratum',
-    'superd',
-    'washington',
-    'tailgater',
-    'bestiagts',
-    'buffalo2',
-    'comet4',
-    'coquette2',
-    'futo',
-    'jester',
-    'penumbra',
-    'rapidgt',
-    'schafter3',
-    'seven70',
-    'sugoi',
-    'vstr',
-    'casco',
-    'mamba',
-    'manana',
-    'pigalle',
-    'tornado',
-    'zion3',
+-- Vehicle tiers. The server picks a tier by weight among the tiers the player qualifies for,
+-- then a random model inside it (GetVehicleClass is client-only, so tiers are defined here).
+-- label     : locale key (locales/*.json) or a literal text, shown when the job starts
+-- weight    : relative chance of the tier among the eligible ones
+-- minLevel  : chop shop reputation level needed (Config.Reputation.Levels; ignored when the reputation is disabled)
+-- minPolice : optional, officers on duty needed for this tier; Config.Police.MinOnDuty still applies
+--             to every job, so the effective requirement is the higher of the two
+-- payout    : multiplier for the final payment (Config.Payment)
+-- quality   : ox_inventory metadata `quality` given to the part items of this tier; the sell ped pays
+--             Config.SellPed.QualityMultiplier[quality] times the base price
+-- loot      : extra server-side rolls for every removed part:
+--             { item, chance (0-100), min, max, parts = optional list of bones it applies to,
+--               quality = true to give it with the tier quality metadata }
+-- A server config that still defines the old flat `Config.Vehicles` list (and no Config.Tiers) keeps
+-- working: it is treated as a single 'low' tier.
+local WHEELS = { 'wheel_lf', 'wheel_lr', 'wheel_rr', 'wheel_rf' }
+
+Config.Tiers = {
+    low = {
+        label = 'tier_low',
+        weight = 60,
+        minLevel = 0,
+        payout = 1.0,
+        quality = 'standard',
+        models = {
+            'emperor', 'manana', 'tornado', 'primo2', 'stanier', 'washington', 'glendale2', 'asterope',
+            'stratum', 'futo', 'moonbeam', 'phoenix', 'tulip', 'vigero', 'dukes', 'hustler', 'weevil',
+            'yosemite', 'winky', 'kalahari', 'landstalker', 'seminole2', 'granger', 'sandking', 'patriot',
+        },
+        loot = {
+            { item = 'scrap_metal', chance = 50, min = 1, max = 3 },
+        },
+    },
+    mid = {
+        label = 'tier_mid',
+        weight = 30,
+        minLevel = 2,
+        payout = 1.5,
+        quality = 'premium',
+        models = {
+            'sultanrs', 'buffalo2', 'schafter3', 'felon', 'cogcabrio', 'f620', 'windsor', 'stafford',
+            'deviant', 'dominator3', 'ellie', 'nightshade', 'sabregt', 'tailgater', 'penumbra', 'sugoi',
+            'everon', 'caracara2', 'dubsta3', 'lurcher', 'pigalle', 'zion3', 'previon', 'sentinel',
+        },
+        loot = {
+            { item = 'scrap_metal', chance = 40, min = 1, max = 2 },
+            { item = 'sport_wheel', chance = 25, min = 1, max = 1, parts = WHEELS, quality = true },
+        },
+    },
+    high = {
+        label = 'tier_high',
+        weight = 10,
+        minLevel = 4,
+        minPolice = 3,
+        payout = 2.5,
+        quality = 'exotic',
+        models = {
+            'banshee', 'seven70', 'bestiagts', 'carbonizzare', 'coquette2', 'rapidgt', 'ninef',
+            'jester', 'comet4', 'feltzer2', 'superd', 'mamba', 'casco', 'vstr',
+        },
+        loot = {
+            { item = 'scrap_metal', chance = 30, min = 1, max = 2 },
+            { item = 'sport_wheel', chance = 50, min = 1, max = 1, parts = WHEELS, quality = true },
+            { item = 'turbo_kit',   chance = 35, min = 1, max = 1, parts = { 'engine' }, quality = true },
+        },
+    },
+}
+
+-- Chop shop reputation, saved per character in the oxmysql table `nek_chopshop_reputation`
+-- (created automatically on start). XP is only given or taken by the server when a job ends.
+-- type: table
+Config.Reputation = {
+    -- false: no XP is earned, no perks apply, the job board hides the reputation block and
+    -- every tier is available regardless of its minLevel.
+    -- type: boolean
+    Enabled = true,
+
+    -- XP earned and lost. type: table (integers)
+    XP = {
+        Base             = 20,  -- owner, for every finished job
+        PerPart          = 5,   -- owner, for every part removed in the finished job
+        TimeBonusMax     = 15,  -- owner, scaled by the fraction of the scrap time limit left (all of it = full bonus)
+        PartnerShare     = 0.5, -- the partner gets this share (0-1) of the owner's XP for the job
+        PenaltyExpired   = 10,  -- owner loses this when the job runs out of time (Config.TimeLimit)
+        PenaltyAbandoned = 15,  -- owner loses this when they leave the server with an active job
+    },
+
+    -- Levels, from level 0 upward: the level number is the position in this list minus one
+    -- (first entry = level 0, which must start at xp = 0). Config.Tiers[].minLevel refers to these numbers.
+    -- xp    : total XP needed to reach the level
+    -- perks : what the level gives (not cumulative: each level lists its own values)
+    --   sellMultiplier     : multiplies the sell ped price (on top of the quality multiplier), 1.0 = no bonus
+    --   cooldownMultiplier : multiplies Config.Cooldown after taking a job (0-1), 1.0 = full wait
+    --   extraPartChance    : chance (0-100) of one extra copy of each removed part
+    -- Vehicle tiers unlock through Config.Tiers[].minLevel (low 0, mid 2, high 4).
+    -- type: table
+    Levels = {
+        { xp = 0,    perks = { sellMultiplier = 1.00, cooldownMultiplier = 1.00, extraPartChance = 0 } },  -- level 0
+        { xp = 100,  perks = { sellMultiplier = 1.05, cooldownMultiplier = 1.00, extraPartChance = 0 } },  -- level 1
+        { xp = 300,  perks = { sellMultiplier = 1.05, cooldownMultiplier = 0.90, extraPartChance = 5 } },  -- level 2: mid tier
+        { xp = 600,  perks = { sellMultiplier = 1.10, cooldownMultiplier = 0.85, extraPartChance = 5 } },  -- level 3
+        { xp = 1000, perks = { sellMultiplier = 1.15, cooldownMultiplier = 0.80, extraPartChance = 10 } }, -- level 4: high tier
+        { xp = 1600, perks = { sellMultiplier = 1.20, cooldownMultiplier = 0.75, extraPartChance = 15 } }, -- level 5
+    },
+
+    -- Weekly loss of XP without finished jobs. Applied when the reputation is read (no timer):
+    -- every full week since the last finished job removes PerWeek XP. Off by default.
+    -- type: table
+    Decay = {
+        Enabled = false, -- type: boolean
+        PerWeek = 50,    -- type: integer, XP lost per full week without activity
+    },
 }
 
 -- Parts that can be removed from the job vehicle.
 -- The server only rewards parts listed here, so this table is the reward whitelist.
--- label: key in Config.Locales | part: door index / wheel index | bonus: extra items given with the part
--- optional: only included if the vehicle model has that bone (2-door vs 4-door bodies)
+-- label: key in locales/*.json | part: door index / wheel index | bonus: extra items given with the part
+-- optional: the part is only part of the job if the vehicle model has that bone (the client reports the bones,
+--           the server only accepts bones listed here). Only the 4 wheels are mandatory (every automobile has
+--           them); everything else is optional so a model lacking a bone can never leave the job unfinishable.
+--           Trade-off: a cheater can at most claim the configured optional parts once per job, which is
+--           bounded by the job cooldown (Config.Cooldown).
+-- requires: bone of another part that has to be removed first (e.g. the seats need their door removed).
+--           Enforced on the server; the client only hides the target. If the required part is not part of
+--           this job (the model lacks that bone) the requirement counts as satisfied.
+-- anim: 'repair' plays the under-hood repair animation, otherwise the mechanic animation is used.
+-- No door/wheel flag (engine, seats): nothing is removed visually, the player only gets the item.
 Config.ChopParts = {
-    { bone = 'door_dside_f', part = 0, item = 'vehicle_door', label = 'door_lf',  isDoor = true },
-    { bone = 'door_dside_r', part = 2, item = 'vehicle_door', label = 'door_lr',  isDoor = true, optional = true },
-    { bone = 'door_pside_r', part = 3, item = 'vehicle_door', label = 'door_rr',  isDoor = true, optional = true },
-    { bone = 'door_pside_f', part = 1, item = 'vehicle_door', label = 'door_rf',  isDoor = true },
-    { bone = 'bonnet',       part = 4, item = 'vehicle_hood', label = 'hood',     isDoor = true, bonus = { 'car-battery' } },
-    { bone = 'wheel_lf',     part = 0, item = 'veh_wheels',   label = 'wheel_lf', isWheel = true },
-    { bone = 'wheel_lr',     part = 2, item = 'veh_wheels',   label = 'wheel_lr', isWheel = true },
-    { bone = 'wheel_rr',     part = 3, item = 'veh_wheels',   label = 'wheel_rr', isWheel = true },
-    { bone = 'wheel_rf',     part = 1, item = 'veh_wheels',   label = 'wheel_rf', isWheel = true },
+    { bone = 'door_dside_f',  part = 0, item = 'vehicle_door',   label = 'door_lf',  isDoor = true, optional = true },
+    { bone = 'door_dside_r',  part = 2, item = 'vehicle_door',   label = 'door_lr',  isDoor = true, optional = true },
+    { bone = 'door_pside_r',  part = 3, item = 'vehicle_door',   label = 'door_rr',  isDoor = true, optional = true },
+    { bone = 'door_pside_f',  part = 1, item = 'vehicle_door',   label = 'door_rf',  isDoor = true, optional = true },
+    { bone = 'bonnet',        part = 4, item = 'vehicle_hood',   label = 'hood',     isDoor = true, optional = true, anim = 'repair', bonus = { 'car-battery' } },
+    { bone = 'boot',          part = 5, item = 'vehicle_trunk',  label = 'trunk',    isDoor = true, optional = true },
+    { bone = 'engine',                  item = 'vehicle_engine', label = 'engine',   optional = true, requires = 'bonnet', anim = 'repair' },
+    { bone = 'seat_dside_f',            item = 'vehicle_seat',   label = 'seat_lf',  optional = true, requires = 'door_dside_f' },
+    { bone = 'seat_pside_f',            item = 'vehicle_seat',   label = 'seat_rf',  optional = true, requires = 'door_pside_f' },
+    { bone = 'wheel_lf',      part = 0, item = 'veh_wheels',     label = 'wheel_lf', isWheel = true },
+    { bone = 'wheel_lr',      part = 2, item = 'veh_wheels',     label = 'wheel_lr', isWheel = true },
+    { bone = 'wheel_rr',      part = 3, item = 'veh_wheels',     label = 'wheel_rr', isWheel = true },
+    { bone = 'wheel_rf',      part = 1, item = 'veh_wheels',     label = 'wheel_rf', isWheel = true },
 }
 
 -- Item given to the job owner once every part has been removed
@@ -421,6 +475,84 @@ Config.Security = {
     SpawnClearRadius = 3.0,  -- spawn point is skipped if a vehicle is within this radius
     MaxAverageSpeed  = 60.0, -- m/s (~216 km/h); faster spawn->scrap deliveries are treated as teleports
     WarnThrottle     = 30,   -- seconds between suspicious-request logs for the same player
+    DispatchDistance = 10.0, -- max distance from the player to the job vehicle when the police alert is sent
+}
+
+-- Police requirement and dispatch alert
+-- type: table
+Config.Police = {
+    -- Minimum police officers on duty to hand out a job. 0 disables the requirement.
+    -- type: number
+    MinOnDuty = 0,
+
+    -- QBCore/Qbox: job type counted as police (players whose job.type matches and are on duty).
+    -- Set to false to count by the job names in `Jobs` instead.
+    -- type: string | false
+    JobType = 'leo',
+
+    -- Police job names. Used by ESX to count officers (job.onDuty ~= false) and by the dispatch
+    -- scripts that address alerts by job name.
+    -- type: table
+    Jobs = { 'police', 'sheriff' },
+
+    -- Alert sent once per job, when the vehicle is lockpicked
+    -- type: table
+    Dispatch = {
+        -- 'auto'   : first started script of the supported list (see README, "Police & dispatch")
+        -- name     : force one: 'ps-dispatch', 'cd_dispatch', 'qs-dispatch', 'rcore_dispatch', 'core_dispatch',
+        --            'tk_dispatch', 'origen_police', 'lb-tablet', 'linden_outlawalert'
+        -- 'custom' : calls Editable.Client.DispatchAlert(data) and Editable.Server.DispatchAlert(data)
+        -- false    : no alert
+        -- type: string | false
+        System = 'auto',
+
+        -- Radio code shown by the dispatch script
+        -- type: string
+        Code = '10-35',
+
+        -- ps-dispatch alert name (codeName)
+        -- type: string
+        CodeName = 'vehicletheft',
+
+        -- Locale keys (locales/*.json) for the alert title and message; a literal text also works.
+        -- The message receives the vehicle model and the plate (%s, %s).
+        -- type: string
+        Title = 'dispatch_title',
+        Message = 'dispatch_message',
+
+        -- Map blip of the alert, for the scripts that accept one
+        -- type: table
+        Blip = {
+            Sprite = 225, -- blip sprite id
+            Color = 1,    -- blip colour id
+            Scale = 1.0,  -- blip scale
+            Time = 120,   -- seconds the blip stays (converted to each script's unit, minutes are rounded up)
+        },
+    },
+}
+
+-- ACE allowed to use the admin commands (/chopshop_resetcd). The server console can always use them.
+-- Players with this ACE also skip the anti-teleport delivery check, so they can test with teleports.
+-- type: string
+Config.AdminAce = 'admin'
+
+-- Vehicle keys. Key scripts (qbx_vehiclekeys, qb-vehiclekeys, ...) block the engine of a vehicle the
+-- player has no keys for; after a successful lockpick the server gives the job owner the keys of the
+-- job vehicle (once per job, only with a lockpick item, never to the partner).
+-- type: table
+Config.VehicleKeys = {
+    -- 'auto'   : first started script of the supported list (see README, "Vehicle keys")
+    -- name     : force one: 'qbx_vehiclekeys', 'qs-vehiclekeys', 'wasabi_carlock', 'MrNewbVehicleKeys',
+    --            'ak47_vehiclekeys', 'vehicles_keys', 'qb-vehiclekeys'
+    -- 'custom' : calls Editable.Server.GiveVehicleKeys / RemoveVehicleKeys (editable/server.lua)
+    -- false    : no keys are given (ESX without a key script, for example)
+    -- type: string | false
+    System = 'auto',
+
+    -- Take the keys back from the owner when the job ends (finished, cancelled, expired, owner left
+    -- or resource stop), before the vehicle is deleted.
+    -- type: boolean
+    RemoveOnEnd = true,
 }
 
 -- Job time limits in minutes. A job that exceeds them is cancelled and its scrap point released.
