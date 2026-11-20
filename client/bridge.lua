@@ -56,11 +56,8 @@ function Bridge.GetName(playerId)
     return GetPlayerName(playerId)
 end
 
+-- Asked to the server, so the client works with every inventory. UI only: the server checks the
+-- lockpick again when the scrap starts. Yields (call it from a thread / ox_target onSelect).
 function Bridge.HasLockpick()
-    for _, item in ipairs(Config.LockpickItems or { 'lockpick' }) do
-        if exports.ox_inventory:Search('count', item) > 0 then
-            return true
-        end
-    end
-    return false
+    return lib.callback.await('chopshop:server:hasLockpick', false) == true
 end

@@ -4,6 +4,8 @@
 
 local SUPPORTED = { esx = true, qbcore = true, qbox = true }
 
+local RESOURCES = { qbox = 'qbx_core', esx = 'es_extended', qbcore = 'qb-core' }
+
 local DETECTION_ORDER = {
     { name = 'qbox',   resource = 'qbx_core' },
     { name = 'esx',    resource = 'es_extended' },
@@ -19,10 +21,15 @@ local function resolveFramework()
     local configured = (Config.Framework or 'auto'):lower()
 
     if configured ~= 'auto' then
-        if SUPPORTED[configured] then
+        if not SUPPORTED[configured] then
+            print(('^3[nek_chopshop] Unsupported Config.Framework "%s". Falling back to auto-detection.^7'):format(configured))
+        elseif not isStarted(RESOURCES[configured]) then
+            -- A forced framework whose core is not running would crash the bridges on the first export call
+            print(('^3[nek_chopshop] Config.Framework is "%s" but %s is not started. Falling back to auto-detection.^7')
+                :format(configured, RESOURCES[configured]))
+        else
             return configured
         end
-        print(('^1[nek_chopshop] Unsupported Config.Framework "%s". Falling back to auto-detection.^7'):format(configured))
     end
 
     for _, candidate in ipairs(DETECTION_ORDER) do

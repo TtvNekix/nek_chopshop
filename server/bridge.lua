@@ -80,19 +80,74 @@ else
     print('ChopShop: Framework not supported: ' .. tostring(Config.Framework))
 end
 
--- Inventory functions (ox_inventory is shared by every supported framework)
-function Bridge.AddItem(source, item, count)
-    return exports.ox_inventory:AddItem(source, item, count)
+-- Police on duty --------------------------------------------------------------
+-- QBCore/Qbox count by Config.Police.JobType (or by Config.Police.Jobs when JobType is false);
+-- ESX counts players of Config.Police.Jobs whose job.onDuty is not false (nil = on duty, old ESX).
+
+local function policeJobNames()
+    local names = {}
+    for _, name in ipairs((Config.Police and Config.Police.Jobs) or {}) do names[name] = true end
+    return names
+end
+
+function Bridge.GetPoliceCount()
+    local police = Config.Police or {}
+    local jobType = police.JobType
+    local count = 0
+
+    if Framework == 'qbox' then
+        if jobType then
+            return exports.qbx_core:GetDutyCountType(jobType) or 0
+        end
+        for _, name in ipairs(police.Jobs or {}) do
+            count = count + (exports.qbx_core:GetDutyCountJob(name) or 0)
+        end
+    elseif Framework == 'qbcore' then
+        local names = policeJobNames()
+        for _, player in pairs(QBCore.Functions.GetQBPlayers()) do
+            local job = player.PlayerData.job
+            local matches = jobType and job.type == jobType or (not jobType and names[job.name])
+            if matches and job.onduty then count = count + 1 end
+        end
+    elseif Framework == 'esx' then
+        for _, name in ipairs(police.Jobs or {}) do
+            for _, xPlayer in pairs(ESX.GetExtendedPlayers('job', name)) do
+                if xPlayer.job.onDuty ~= false then count = count + 1 end
+            end
+        end
+    end
+
+    return count
+end
+
+-- Inventory functions: thin wrappers over the adapter of the detected inventory (server/inventory.lua).
+-- metadata: optional table in the inventory's shape (Inventory.MakeMetadata); items with different
+-- metadata never stack.
+function Bridge.AddItem(source, item, count, metadata)
+    return Inventory.AddItem(source, item, count, metadata)
 end
 
 function Bridge.CanCarryItem(source, item, count)
-    return exports.ox_inventory:CanCarryItem(source, item, count)
+    return Inventory.CanCarryItem(source, item, count)
 end
 
 function Bridge.GetItemCount(source, item)
-    return exports.ox_inventory:GetItemCount(source, item)
+    return Inventory.GetCount(source, item)
 end
 
-function Bridge.RemoveItem(source, item, count)
-    return exports.ox_inventory:RemoveItem(source, item, count)
+-- Removes `count` from that exact stack (an entry of Bridge.GetItemStacks).
+function Bridge.RemoveStack(source, item, count, stack)
+    return Inventory.RemoveStack(source, item, count, stack)
+end
+
+-- True when the player can receive every grant at once.
+-- grants = { { item = string, count = number, metadata = table|nil }, ... }
+-- removePart relies on no yield between this check and the grant (see server/inventory.lua).
+function Bridge.CanCarryItems(source, grants)
+    return Inventory.CanCarry(source, grants)
+end
+
+-- Every stack of an item in the player's inventory: { { slot, count, metadata, quality }, ... }
+function Bridge.GetItemStacks(source, item)
+    return Inventory.GetStacks(source, item)
 end
